@@ -32,6 +32,7 @@
 
     <div id="call-overlay-modal" style="display: none;">
         <div class="modal-box">
+  
             <h2 id="modal-title">Incoming Call...</h2>
             <p id="modal-description">A friend is calling you.</p>
       
@@ -45,6 +46,7 @@
                 <button id="mute-btn" title="Mute Microphone">🎤</button>
                 <button id="deafen-btn" title="Deafen Audio">🎧</button>
                 <button id="camera-toggle-btn" title="Toggle Camera">📷</button>
+              
                 <button id="hangup-btn" title="End Call" class="hangup-danger-btn">🛑</button>
             </div>
         </div>
@@ -59,12 +61,14 @@
         <div id="chat-messages"></div>
         <div id="writing-status"></div>
         <div id="chat-input-area">
+       
             <button id="attachments-trigger-btn">+</button>
             <div id="ipad-context-menu" style="display: none;">
                 <button class="menu-item-action" data-action="file">Upload File</button>
                 <button class="menu-item-action" data-action="gallery">Upload from Gallery</button>
                 <button class="menu-item-action" data-action="camera">Take Photo/Video</button>
             </div>
+         
             <input type="file" id="hidden-file-element" style="display: none;" accept="*/*">
             <input type="file" id="hidden-gallery-element" style="display: none;" accept="image/*,video/*">
             <input type="file" id="hidden-camera-element" style="display: none;" accept="image/*,video/*" capture="user">
@@ -165,7 +169,8 @@
                     writingStatus.innerText = data.status ? "friend is writing..." : "";
                 } else if (data.type === 'media') {
                     appendMediaMessage("Friend", data.mediaType, data.payload, data.name);
-                } else if (data.type === 'call-signaling') {
+                } 
+                else if (data.type === 'call-signaling') {
                     handleIncomingCallSignal(data);
                 }
             });
@@ -181,7 +186,7 @@
             setupCallControlListeners();
             setupAttachmentTrayListeners();
             initAudioEngine();
-            setupZoomHandler(); // Aktiviert den Zoom-Fix
+            setupZoomHandler();
         }
 
         // --- 3. ROBLOX CHAT RUNTIME LOGIK ---
@@ -415,6 +420,7 @@
             }
 
             try {
+                alert("Please allow Microphone access for the voice memo.");
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
                 recordedChunks = [];
                 audioRecorder = new MediaRecorder(stream);
@@ -454,7 +460,6 @@
             document.getElementById('deafen-btn').addEventListener('click', toggleDeafen);
             document.getElementById('camera-toggle-btn').addEventListener('click', toggleCameraState);
             document.getElementById('hangup-btn').addEventListener('click', terminateActiveCall);
-            
             peer.on('call', (call) => {
                 if (call.metadata && call.metadata.isScreenShare) {
                     promptScreenShareAcceptance(call);
@@ -492,8 +497,8 @@
             modal.style.display = 'flex';
             
             updateStatusLabelText("Calling friend...");
-            
             try {
+                alert(`Calling. Please ensure Camera/Microphone permissions are allowed when requested.`);
                 const constraints = {
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
                     video: type === 'video' ? { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } : false
@@ -536,18 +541,17 @@
 
             const acceptBtn = document.getElementById('modal-accept-btn');
             const declineBtn = document.getElementById('modal-decline-btn');
-            
             acceptBtn.onclick = async () => {
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
                 document.getElementById('modal-live-controls').style.display = 'flex';
                 document.getElementById('modal-title').innerText = type === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
-                
                 if (dataConnection) {
                     dataConnection.send({ type: 'call-signaling', action: 'accept-notify' });
                 }
                 
                 try {
+                    alert(`Answering. Please grant Media Access when prompted.`);
                     const constraints = {
                         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
                         video: type === 'video' ? { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } : false
@@ -568,7 +572,6 @@
                     cleanupCallEndState();
                 }
             };
-            
             declineBtn.onclick = () => {
                 modal.style.display = 'none';
                 call.close();
@@ -601,14 +604,12 @@
                     document.getElementById('video-streams-container').style.display = 'block';
                 }
             });
-            
             call.on('close', () => {
                 cleanupCallEndState();
             });
         }
 
         function toggleCallControlButtonsVisibility(inCall) {
-            // Passt die Sichtbarkeits-Klassen im Modal-Live-Controls-Bereich an
             const liveControls = document.getElementById('modal-live-controls');
             if (inCall) {
                 liveControls.style.display = 'flex';
@@ -671,7 +672,6 @@
                 if (dataConnection) dataConnection.send({ type: 'call-signaling', action: 'upgrade-approved' });
                 executeCameraUpgrade();
             };
-            
             document.getElementById('modal-decline-btn').onclick = () => {
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
                 document.getElementById('modal-live-controls').style.display = 'flex';
@@ -685,6 +685,7 @@
             activeCallType = 'video';
             isCameraOn = true;
             try {
+                alert("Granting camera access for call upgrade.");
                 const videoTrackStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } 
                 });
@@ -723,6 +724,7 @@
             }
 
             try {
+                alert("Please select the screen/window you wish to share.");
                 screenShareStream = await navigator.mediaDevices.getDisplayMedia({ 
                     video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } },
                     audio: true 
@@ -1044,24 +1046,63 @@
             const maxZ = 15.0;
             const zoomSpeed = 0.005;
 
+            // Desktop Mouse-Wheel Listener
             window.addEventListener('wheel', (e) => {
                 if (!isChatroomActive) return;
                 e.preventDefault();
 
-                // Berechnet die neue Richtung basierend auf dem Vektor der Kamera zum Ziel
                 let currentZ = camera.position.z + e.deltaY * zoomSpeed;
-                
-                // Grenzt den Zoom-Faktor sauber ein, um Glitches im 3D-Raum komplett zu verhindern
+    
                 if (currentZ < minZ) currentZ = minZ;
                 if (currentZ > maxZ) currentZ = maxZ;
 
                 camera.position.z = currentZ;
-                // Passt Y proportional an, um den Neigungswinkel (LookAt) konstant beizubehalten
                 camera.position.y = 0.589 * currentZ; 
 
                 camera.lookAt(0, 0.8, 0);
                 camera.updateProjectionMatrix();
             }, { passive: false });
+
+            // Mobile Pinch-To-Zoom Touch Event-Listener Fix
+            let initialTouchDistance = null;
+            let initialZ = null;
+
+            window.addEventListener('touchstart', (e) => {
+                if (!isChatroomActive || e.touches.length !== 2) return;
+                initialTouchDistance = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+                initialZ = camera.position.z;
+            }, { passive: true });
+
+            window.addEventListener('touchmove', (e) => {
+                if (!isChatroomActive || e.touches.length !== 2 || initialTouchDistance === null) return;
+                e.preventDefault();
+
+                const currentDistance = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+                
+                // Berechne die Skalierungsänderung (Verhältnis der Distanzen)
+                const factor = initialTouchDistance / currentDistance;
+                let currentZ = initialZ * factor;
+
+                if (currentZ < minZ) currentZ = minZ;
+                if (currentZ > maxZ) currentZ = maxZ;
+
+                camera.position.z = currentZ;
+                camera.position.y = 0.589 * currentZ;
+
+                camera.lookAt(0, 0.8, 0);
+                camera.updateProjectionMatrix();
+            }, { passive: false });
+
+            window.addEventListener('touchend', () => {
+                initialTouchDistance = null;
+                initialZ = null;
+            }, { passive: true });
         }
 
         function updateOverlayPosition(meshGroup, domElement, yOffset) {
