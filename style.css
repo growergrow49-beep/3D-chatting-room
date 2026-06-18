@@ -30,7 +30,7 @@ body {
     box-sizing: border-box;
 }
 
-/* "your id" text inside the box top-left */
+/* \"your id\" text inside the box top-left */
 .id-label {
     align-self: flex-start;
     font-size: 12px;
@@ -166,7 +166,8 @@ body {
     box-shadow: 0 8px 25px rgba(0,0,0,0.7);
     background-color: #111;
     transform: scaleX(-1); /* Spiegelt mein eigenes Bild für natürliche Bewegung */
-    z-index: 110; /* Höher als das Overlay platziert, um immer sichtbar zu sein */
+    z-index: 110;
+    /* Höher als das Overlay platziert, um immer sichtbar zu sein */
     pointer-events: auto;
     transition: all 0.2s;
 }
@@ -195,11 +196,13 @@ body {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.3); /* Leicht abgedunkelt für bessere Lesbarkeit der Texte */
+    background: rgba(0, 0, 0, 0.3);
+    /* Leicht abgedunkelt für bessere Lesbarkeit der Texte */
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-between; /* Verteilt Elemente automatisch nach ganz oben und ganz unten */
+    justify-content: space-between;
+    /* Verteilt Elemente automatisch nach ganz oben und ganz unten */
     padding: 40px 20px;
     box-sizing: border-box;
     z-index: 100;
@@ -265,7 +268,7 @@ body {
 }
 #modal-decline-btn:hover { background: #c0392b; }
 
-/* Fix 2: Steuerungs-Buttons ganz unten am Bildschirmrand frei nebeneinander in einer Reihe */
+/* Fix 2: Steuerungs-Buttons deutlich weiter nach oben verschoben für sichere mobile Bedienung */
 #modal-live-controls {
     display: flex;
     gap: 16px;
@@ -273,7 +276,7 @@ body {
     align-items: center;
     flex-wrap: nowrap; /* Verhindert unschöne Zeilenumbrüche */
     position: absolute;
-    bottom: 30px;
+    bottom: 120px; /* Von 30px auf 120px angehoben, damit sie auf allen Handys/iPads perfekt im Sichtfeld liegen */
     left: 50%;
     transform: translateX(-50%);
     width: auto;
@@ -495,7 +498,7 @@ body {
 
 #send-btn {
     background: #00ff00;
-    color: #00;
+    color: #000000;
     border: none;
     padding: 0 16px;
     height: 36px;
