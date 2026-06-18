@@ -311,17 +311,17 @@
             table.castShadow = true;
             scene.add(table);
 
-            // --- OFF-TABLE ROOM AVATARS ---
+            // --- AVATARS PLACED DIRECTLY NEXT TO THE TABLE ---
 
-            // A. You (Red Sphere - Far Right End of Room, Facing Left)
+            // A. You (Red Sphere - Directly on the Right side of the Table, Facing Left)
             avatarYou = new THREE.Group();
-            avatarYou.position.set(4.0, 0.75, 0); // Placed completely off the table on the right floor area
+            avatarYou.position.set(2.1, 0.75, 0); // Directly off the table top edge
             
             const bodyYou = new THREE.Mesh(new THREE.SphereGeometry(0.45, 32, 32), new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.4 }));
             bodyYou.castShadow = true;
             avatarYou.add(bodyYou);
             
-            // Eyes on left side of the sphere to face the other side of the room
+            // Eyes on left side of the sphere to face the table surface directly
             const leftEyeYou = createEye(true); leftEyeYou.position.set(-0.35, 0.15, 0.15);
             const rightEyeYou = createEye(true); rightEyeYou.position.set(-0.35, 0.15, -0.15);
             avatarYou.add(leftEyeYou, rightEyeYou);
@@ -329,15 +329,15 @@
             
             avatarYou.userData.labelEl = createPermanentLabel("you");
 
-            // B. Friend (Blue Sphere - Far Left End of Room, Facing Right)
+            // B. Friend (Blue Sphere - Directly on the Left side of the Table, Facing Right)
             avatarFriend = new THREE.Group();
-            avatarFriend.position.set(-4.0, 0.75, 0); // Placed completely off the table on the left floor area
+            avatarFriend.position.set(-2.1, 0.75, 0); // Directly off the table top edge
             
             const bodyFriend = new THREE.Mesh(new THREE.SphereGeometry(0.45, 32, 32), new THREE.MeshStandardMaterial({ color: 0x0055ff, roughness: 0.4 }));
             bodyFriend.castShadow = true;
             avatarFriend.add(bodyFriend);
             
-            // Eyes on right side of the sphere to face across the room
+            // Eyes on right side of the sphere to look across the table
             const leftEyeFriend = createEye(false); leftEyeFriend.position.set(0.35, 0.15, -0.15);
             const rightEyeFriend = createEye(false); rightEyeFriend.position.set(0.35, 0.15, 0.15);
             avatarFriend.add(leftEyeFriend, rightEyeFriend);
