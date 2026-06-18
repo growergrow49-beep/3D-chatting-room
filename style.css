@@ -15,9 +15,11 @@ body {
     left: 50%;
     transform: translate(-50%, -25%);
     width: 320px;
-    max-width: 90%; /* Responsive fit for small smartphone screens */
+    max-width: 90%;
+    /* Responsive fit for small smartphone screens */
     background: rgba(20, 20, 20, 0.9);
-    border: 2px solid #00ff00;\n    border-radius: 10px;
+    border: 2px solid #00ff00;
+    border-radius: 10px;
     padding: 20px;
     box-shadow: 0 0 20px rgba(0, 250, 0, 0.2);
     z-index: 10;
@@ -138,7 +140,7 @@ body {
     width: 100vw;
     height: 100vh;
     z-index: 5;
-    pointer-events: none; /* Klicks gehen durch auf die 3D-Szene */
+    background-color: #0a0a0a; /* Echter, dunkler Hintergrund für den Videobildschirm */
 }
 
 /* Das Video des Freundes füllt den gesamten Bildschirm aus */
@@ -149,76 +151,108 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    background-color: transparent;
 }
 
-/* Mein eigenes Bild wird klein als Bild-in-Bild unten rechts angezeigt */
+/* Fix 1: Mein eigenes Bild-in-Bild-Video sitzt sauber und gut sichtbar auf dem echten Vollbildschirm über allem */
 #my-video-preview {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
-    width: 160px;
-    height: 120px;
+    bottom: 30px;
+    right: 30px;
+    width: 180px;
+    height: 135px;
     object-fit: cover;
     border-radius: 12px;
-    border: 2px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.7);
     background-color: #111;
     transform: scaleX(-1); /* Spiegelt mein eigenes Bild für natürliche Bewegung */
-    z-index: 6;
-    pointer-events: auto; /* Erlaubt Klicks direkt auf das kleine Video falls nötig */
+    z-index: 110; /* Höher als das Overlay platziert, um immer sichtbar zu sein */
+    pointer-events: auto;
+    transition: all 0.2s;
 }
 
-/* --- Call Overlay Modal Sheets --- */
+/* Fix 3: Screensharing-Statusanzeige sauber und unauffällig positionieren */
+#screenshare-status-indicator {
+    position: absolute;
+    top: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(46, 204, 113, 0.85);
+    color: #fff;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 105;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    pointer-events: none;
+}
+
+/* --- Fix 1 & 2: Neues Vollbild-Anruf-Overlay (Kasten komplett entfernt) --- */
 #call-overlay-modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(0, 0, 0, 0.3); /* Leicht abgedunkelt für bessere Lesbarkeit der Texte */
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between; /* Verteilt Elemente automatisch nach ganz oben und ganz unten */
+    padding: 40px 20px;
+    box-sizing: border-box;
     z-index: 100;
+    pointer-events: none; /* Klicks auf den Hintergrund durchlassen */
 }
-.modal-box {
-    background: rgba(25, 25, 25, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    width: 360px;
-    max-width: 85%;
-    padding: 30px;
-    text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+
+/* Fix 2: Texte frei und zentriert ganz oben am Bildschirmrand platzieren */
+#modal-title {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
     color: #ffffff;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+    text-align: center;
+    width: 100%;
+    pointer-events: auto;
 }
-.modal-box h2 {
-    margin: 0 0 10px 0;
-    font-size: 22px;
-    font-weight: 600;
+#modal-description {
+    margin: 8px 0 0 0;
+    color: #ddd;
+    font-size: 16px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+    text-align: center;
+    width: 100%;
+    pointer-events: auto;
 }
-.modal-box p {
-    margin: 0 0 25px 0;
-    color: #aaa;
-    font-size: 14px;
-}
+
+/* Eingehende Anruf-Aktionen (Annehmen / Ablehnen) im freien Screen zentrieren */
 .modal-actions {
     display: flex;
-    gap: 15px;
+    gap: 20px;
     justify-content: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 320px;
+    max-width: 90%;
+    pointer-events: auto;
 }
 .modal-actions button {
     flex: 1;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 15px;
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 16px;
     font-weight: bold;
     cursor: pointer;
     border: none;
-    transition: background 0.15s;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    transition: background 0.15s, transform 0.1s;
+}
+.modal-actions button:hover {
+    transform: scale(1.03);
 }
 #modal-accept-btn {
     background: #2ecc71;
@@ -231,30 +265,40 @@ body {
 }
 #modal-decline-btn:hover { background: #c0392b; }
 
-/* In-Call Controls Layout Menu bar */
+/* Fix 2: Steuerungs-Buttons ganz unten am Bildschirmrand frei nebeneinander in einer Reihe */
 #modal-live-controls {
     display: flex;
-    gap: 12px;
+    gap: 16px;
     justify-content: center;
-    flex-wrap: wrap;
+    align-items: center;
+    flex-wrap: nowrap; /* Verhindert unschöne Zeilenumbrüche */
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    pointer-events: auto;
 }
 #modal-live-controls button {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(30, 30, 30, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     color: #fff;
-    font-size: 18px;
-    width: 44px;
-    height: 44px;
+    font-size: 22px;
+    width: 54px;
+    height: 54px;
     border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     transition: background 0.15s, transform 0.1s;
 }
 #modal-live-controls button:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.05);
+    background: rgba(60, 60, 60, 0.95);
+    transform: scale(1.08);
 }
 #modal-live-controls .hangup-danger-btn {
     background: #e74c3c !important;
@@ -265,14 +309,14 @@ body {
 
 /* State management modifiers for buttons */
 .control-disabled-state {
-    background: rgba(231, 76, 60, 0.25) !important;
-    border-color: rgba(231, 76, 60, 0.4) !important;
+    background: rgba(231, 76, 60, 0.4) !important;
+    border-color: rgba(231, 76, 60, 0.6) !important;
     color: #e74c3c !important;
 }
 .sharing-active-frame {
-    background: rgba(46, 204, 113, 0.3) !important;
+    background: rgba(46, 204, 113, 0.5) !important;
     border-color: #2ecc71 !important;
-    box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+    box-shadow: 0 0 15px rgba(46, 204, 113, 0.6) !important;
 }
 
 /* --- Roblox Text Bubbles Engine Style UI --- */
@@ -451,7 +495,7 @@ body {
 
 #send-btn {
     background: #00ff00;
-    color: #000;
+    color: #00;
     border: none;
     padding: 0 16px;
     height: 36px;
@@ -587,10 +631,17 @@ body {
         transform: none;
     }
     
+    /* Da der Raum im Anruf nun vollständig schließt, soll das eigene Video mobil unten rechts bleiben und nicht hochspringen */
     #my-video-preview {
-        width: 120px;
-        height: 90px;
-        bottom: 235px; /* Platziert das Bild-in-Bild sicher oberhalb des Chatfensters auf Handys */
+        width: 130px;
+        height: 98px;
+        bottom: 30px;
         right: 20px;
+    }
+    
+    #modal-live-controls button {
+        width: 48px;
+        height: 48px;
+        font-size: 18px;
     }
 }
