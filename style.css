@@ -1,0 +1,102 @@
+/* Grund-Setup: Vollbild und schwarzer Hintergrund für das Login */
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000000;
+    font-family: Arial, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Das Login-Kästchen - Höher platziert für Mobile- & iPad-Tastaturen */
+#login-container {
+    position: absolute;
+    top: 25%;
+    left: 50%;
+    transform: translate(-50%, -25%);
+    width: 320px;
+    max-width: 90%; /* Perfekt für schmale Handys */
+    background: rgba(20, 20, 20, 0.9);
+    border: 2px solid #00ff00;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 250, 0, 0.2);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #ffffff;
+    box-sizing: border-box;
+}
+
+/* "your id" Text oben links im Kästchen */
+.id-label {
+    align-self: flex-start;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Anzeige der eigenen 6-stelligen ID */
+#my-id-display {
+    font-size: 24px;
+    font-weight: bold;
+    color: #00ff00;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    align-self: flex-start;
+}
+
+/* Das Input-Feld für die ID des Freundes */
+#friend-id-input {
+    width: 100%;
+    padding: 14px; /* Optimal für Touch-Bedienung */
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 16px;
+    text-align: center;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.3s;
+    -webkit-appearance: none; /* Erzwingt sauberes iOS-Rendering */
+}
+
+#friend-id-input:focus {
+    border-color: #00ff00;
+}
+
+/* Der Connect-Button (Standard: Grau und unklickbar) */
+#connect-btn {
+    width: 100%;
+    margin-top: 15px;
+    padding: 14px;
+    background-color: #555555;
+    color: #888888;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: not-allowed;
+    transition: all 0.3s ease;
+    -webkit-appearance: none;
+}
+
+/* Aktiver Zustand des Connect-Buttons, wenn 6 Zahlen eingegeben wurden */
+#connect-btn.active {
+    background-color: #00ff00;
+    color: #000000;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+/* Status-Meldungen im Kästchen */
+#status-text {
+    font-size: 12px;
+    color: #aaa;
+    margin-top: 10px;
+    text-align: center;
+}
