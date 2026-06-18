@@ -23,11 +23,6 @@
     <div id="call-controls-container" style="display: none;">
         <button id="audio-call-btn" title="Voice Call">📞</button>
         <button id="video-call-btn" title="Video Call">📹</button>
-        <button id="screenshare-btn" title="Share Screen" style="display: none;">🖥️</button>
-        <button id="mute-btn" title="Mute Microphone" style="display: none;">🎤</button>
-        <button id="deafen-btn" title="Deafen Audio" style="display: none;">🎧</button>
-        <button id="camera-toggle-btn" title="Toggle Camera" style="display: none;">📷</button>
-        <button id="hangup-btn" title="End Call" style="display: none;">🛑</button>
     </div>
 
     <div id="video-streams-container" style="display: none;">
@@ -39,9 +34,18 @@
         <div class="modal-box">
             <h2 id="modal-title">Incoming Call...</h2>
             <p id="modal-description">A friend is calling you.</p>
+      
             <div class="modal-actions" id="modal-actions-wrapper">
                 <button id="modal-accept-btn">Accept</button>
                 <button id="modal-decline-btn">Decline</button>
+            </div>
+
+            <div id="modal-live-controls" style="display: none;">
+                <button id="screenshare-btn" title="Share Screen">🖥️</button>
+                <button id="mute-btn" title="Mute Microphone">🎤</button>
+                <button id="deafen-btn" title="Deafen Audio">🎧</button>
+                <button id="camera-toggle-btn" title="Toggle Camera">📷</button>
+                <button id="hangup-btn" title="End Call" class="hangup-danger-btn">🛑</button>
             </div>
         </div>
     </div>
@@ -81,7 +85,6 @@
         let dataConnection = null;
         let avatarYou, avatarFriend;
         const activeBubbles = { you: null, friend: null };
-        
         // Web Audio Infrastructure
         let audioCtx = null;
         let bkgMusicNode = null;
@@ -89,7 +92,6 @@
         const BASE_MUSIC_VOLUME = 0.36;
         const DUCKED_MUSIC_VOLUME = 0.08;
         let isAudioSuspendedLocally = false;
-        
         // Call Media State
         let currentPeerCall = null;
         let currentScreenShareCall = null;
@@ -100,7 +102,6 @@
         let isCameraOn = false;
         let activeCallType = null; // 'audio' or 'video'
         let isInCallMode = false;
-
         // Audio Recording Runtime Variables
         let audioRecorder = null;
         let recordedChunks = [];
@@ -117,7 +118,6 @@
         const peer = new Peer(myId, {
             config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }, { 'urls': 'stun:stun1.l.google.com:19302' }] }
         });
-
         const friendInput = document.getElementById('friend-id-input');
         const connectBtn = document.getElementById('connect-btn');
         const statusText = document.getElementById('status-text');
@@ -181,6 +181,7 @@
             setupCallControlListeners();
             setupAttachmentTrayListeners();
             initAudioEngine();
+            setupZoomHandler(); // Aktiviert den Zoom-Fix
         }
 
         // --- 3. ROBLOX CHAT RUNTIME LOGIK ---
@@ -193,6 +194,7 @@
                     dataConnection.send({ type: 'writing', status: chatInput.value.length > 0 });
                 }
             });
+
             chatInput.addEventListener('blur', () => {
                 if (dataConnection) {
                     dataConnection.send({ type: 'writing', status: false });
@@ -290,9 +292,11 @@
                 e.stopPropagation();
                 menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
             });
+
             document.addEventListener('click', () => {
                 menu.style.display = 'none';
             });
+
             document.querySelectorAll('.menu-item-action').forEach(item => {
                 item.addEventListener('click', function() {
                     const action = this.getAttribute('data-action');
@@ -301,9 +305,11 @@
                     if (action === 'camera') document.getElementById('hidden-camera-element').click();
                 });
             });
+
             const hiddenFile = document.getElementById('hidden-file-element');
             const hiddenGallery = document.getElementById('hidden-gallery-element');
             const hiddenCamera = document.getElementById('hidden-camera-element');
+
             const uploadProcessor = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -326,6 +332,7 @@
             hiddenFile.addEventListener('change', uploadProcessor);
             hiddenGallery.addEventListener('change', uploadProcessor);
             hiddenCamera.addEventListener('change', uploadProcessor);
+
             document.getElementById('lightbox-close-btn').addEventListener('click', () => {
                 const overlay = document.getElementById('lightbox-overlay');
                 const holder = document.getElementById('lightbox-content-holder');
@@ -447,7 +454,7 @@
             document.getElementById('deafen-btn').addEventListener('click', toggleDeafen);
             document.getElementById('camera-toggle-btn').addEventListener('click', toggleCameraState);
             document.getElementById('hangup-btn').addEventListener('click', terminateActiveCall);
-
+            
             peer.on('call', (call) => {
                 if (call.metadata && call.metadata.isScreenShare) {
                     promptScreenShareAcceptance(call);
@@ -465,10 +472,10 @@
             } else if (data.action === 'upgrade-declined') {
                 alert("Friend declined camera activation.");
             } else if (data.action === 'accept-notify') {
-                // Partner hat abgenommen -> Zustand des Vollbildschirms updaten
                 const modal = document.getElementById('call-overlay-modal');
                 document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
+                document.getElementById('modal-live-controls').style.display = 'flex';
             }
         }
 
@@ -477,11 +484,11 @@
             isInCallMode = true;
             toggle3DLabelsVisibility(false);
             
-            // Vollbild-Modal aufbauen
             const modal = document.getElementById('call-overlay-modal');
             document.getElementById('modal-title').innerText = "Calling your friend...";
             document.getElementById('modal-description').innerText = `Initiating ${type === 'video' ? 'Video' : 'Voice'} Call connection.`;
-            document.getElementById('modal-actions-wrapper').style.display = 'none'; 
+            document.getElementById('modal-actions-wrapper').style.display = 'none';
+            document.getElementById('modal-live-controls').style.display = 'flex';
             modal.style.display = 'flex';
             
             updateStatusLabelText("Calling friend...");
@@ -524,15 +531,18 @@
             document.getElementById('modal-title').innerText = "Incoming Call";
             document.getElementById('modal-description').innerText = `Friend is calling via ${type === 'video' ? 'Video Call' : 'Voice Call'}. Do you want to answer?`;
             document.getElementById('modal-actions-wrapper').style.display = 'flex'; 
+            document.getElementById('modal-live-controls').style.display = 'none';
             modal.style.display = 'flex';
 
             const acceptBtn = document.getElementById('modal-accept-btn');
             const declineBtn = document.getElementById('modal-decline-btn');
-
+            
             acceptBtn.onclick = async () => {
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
+                document.getElementById('modal-live-controls').style.display = 'flex';
                 document.getElementById('modal-title').innerText = type === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
+                
                 if (dataConnection) {
                     dataConnection.send({ type: 'call-signaling', action: 'accept-notify' });
                 }
@@ -558,6 +568,7 @@
                     cleanupCallEndState();
                 }
             };
+            
             declineBtn.onclick = () => {
                 modal.style.display = 'none';
                 call.close();
@@ -571,7 +582,6 @@
             manageLocalAudioSuspension(true);
             toggleCallControlButtonsVisibility(true);
 
-            // Setze Text des Fensters auf Aktiv (Falls man angerufen hat und der Partner nun akzeptiert hat)
             const modal = document.getElementById('call-overlay-modal');
             if (modal.style.display === 'flex' && document.getElementById('modal-title').innerText === "Calling your friend...") {
                 document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
@@ -591,20 +601,19 @@
                     document.getElementById('video-streams-container').style.display = 'block';
                 }
             });
+            
             call.on('close', () => {
                 cleanupCallEndState();
             });
         }
 
         function toggleCallControlButtonsVisibility(inCall) {
-            document.getElementById('audio-call-btn').style.display = inCall ? 'none' : 'block';
-            document.getElementById('video-call-btn').style.display = inCall ? 'none' : 'block';
-            
-            document.getElementById('screenshare-btn').style.display = inCall ? 'block' : 'none';
-            document.getElementById('mute-btn').style.display = inCall ? 'block' : 'none';
-            document.getElementById('deafen-btn').style.display = inCall ? 'block' : 'none';
-            document.getElementById('camera-toggle-btn').style.display = inCall ? 'block' : 'none';
-            document.getElementById('hangup-btn').style.display = inCall ? 'block' : 'none';
+            // Passt die Sichtbarkeits-Klassen im Modal-Live-Controls-Bereich an
+            const liveControls = document.getElementById('modal-live-controls');
+            if (inCall) {
+                liveControls.style.display = 'flex';
+                document.getElementById('camera-toggle-btn').classList.toggle('control-disabled-state', !isCameraOn);
+            }
         }
 
         function updateStatusLabelText(text) {
@@ -639,12 +648,9 @@
                 localMediaStream.getVideoTracks().forEach(t => t.enabled = isCameraOn);
                 document.getElementById('my-video-preview').style.display = isCameraOn ? 'block' : 'none';
                 document.getElementById('camera-toggle-btn').classList.toggle('control-disabled-state', !isCameraOn);
-                
                 if (isCameraOn && activeCallType === 'video') {
                     document.getElementById('video-streams-container').style.display = 'block';
                     document.getElementById('modal-title').innerText = 'Video call active';
-                } else if (!isCameraOn && activeCallType === 'video') {
-                    // Falls alle Kameras aus sind, bleibt es strukturell ein Video Call
                 }
             }
         }
@@ -654,17 +660,21 @@
             document.getElementById('modal-title').innerText = "Upgrade to Video Call";
             document.getElementById('modal-description').innerText = "Friend wants to activate their camera. Confirm?";
             document.getElementById('modal-actions-wrapper').style.display = 'flex';
+            document.getElementById('modal-live-controls').style.display = 'none';
             modal.style.display = 'flex';
-
+            
             document.getElementById('modal-accept-btn').onclick = () => {
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
+                document.getElementById('modal-live-controls').style.display = 'flex';
                 document.getElementById('modal-title').innerText = 'Video call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
                 if (dataConnection) dataConnection.send({ type: 'call-signaling', action: 'upgrade-approved' });
                 executeCameraUpgrade();
             };
+            
             document.getElementById('modal-decline-btn').onclick = () => {
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
+                document.getElementById('modal-live-controls').style.display = 'flex';
                 document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
                 if (dataConnection) dataConnection.send({ type: 'call-signaling', action: 'upgrade-declined' });
@@ -735,20 +745,20 @@
             document.getElementById('modal-title').innerText = "Screen Share Stream";
             document.getElementById('modal-description').innerText = "Friend wants to share their screen. Watch?";
             document.getElementById('modal-actions-wrapper').style.display = 'flex';
+            document.getElementById('modal-live-controls').style.display = 'none';
             modal.style.display = 'flex';
-
+            
             document.getElementById('modal-accept-btn').onclick = () => {
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
+                document.getElementById('modal-live-controls').style.display = 'flex';
                 document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend (Viewing Screen Share).";
-                
                 currentScreenShareCall = call;
                 call.answer(); 
                 
                 document.getElementById('video-streams-container').style.display = 'block';
                 const friendVideo = document.getElementById('friend-video-view');
                 friendVideo.style.display = 'block';
-
                 call.on('stream', (remoteStream) => {
                     friendVideo.srcObject = remoteStream;
                 });
@@ -756,6 +766,7 @@
 
             document.getElementById('modal-decline-btn').onclick = () => {
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
+                document.getElementById('modal-live-controls').style.display = 'flex';
                 document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
                 call.close();
@@ -801,12 +812,12 @@
             document.getElementById('deafen-btn').classList.remove('control-disabled-state');
             document.getElementById('camera-toggle-btn').classList.remove('control-disabled-state');
 
-            toggleCallControlButtonsVisibility(false);
             updateStatusLabelText("");
             manageLocalAudioSuspension(false);
             
             isInCallMode = false;
             document.getElementById('call-overlay-modal').style.display = 'none';
+            document.getElementById('modal-live-controls').style.display = 'none';
             toggle3DLabelsVisibility(true);
         }
 
@@ -825,34 +836,25 @@
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContextClass();
                 
-                // Animal Crossing gemütlicher Background-Akkord & Melodieverlauf Synthesizer
-                const bufferSize = audioCtx.sampleRate * 8; // 8 Sekunden Loop-Länge
+                const bufferSize = audioCtx.sampleRate * 8;
                 const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                 const data = buffer.getChannelData(0);
                 
-                // Generiere gemütliche, schaukelnde Marimba/Gitarren-Akkorde im Nintendo-Stil
                 for (let i = 0; i < bufferSize; i++) {
                     const t = i / audioCtx.sampleRate;
+                    let f1 = 196.00, f2 = 246.94, f3 = 293.66;
+                    if (t > 2.0 && t <= 4.0) { f1 = 261.63; f2 = 329.63; f3 = 392.00; }
+                    else if (t > 4.0 && t <= 6.0) { f1 = 293.66; f2 = 369.99; f3 = 440.00; }
+                    else if (t > 6.0) { f1 = 196.00; f2 = 246.94; f3 = 392.00; }
                     
-                    // Akkordwechsel alle 2 Sekunden (G - C - D - G)
-                    let f1 = 196.00, f2 = 246.94, f3 = 293.66; // G-Dur
-                    if (t > 2.0 && t <= 4.0) { f1 = 261.63; f2 = 329.63; f3 = 392.00; } // C-Dur
-                    else if (t > 4.0 && t <= 6.0) { f1 = 293.66; f2 = 369.99; f3 = 440.00; } // D-Dur
-                    else if (t > 6.0) { f1 = 196.00; f2 = 246.94; f3 = 392.00; } // G-Dur Variante
-                    
-                    // Sanfte Sinuswellen
                     const wave1 = Math.sin(2 * Math.PI * f1 * t);
                     const wave2 = Math.sin(2 * Math.PI * f2 * t);
                     const wave3 = Math.sin(2 * Math.PI * f3 * t);
-                    
-                    // Animal Crossing typische wellenartige Akzentuierung (0.5 Hz Rhythmus)
                     const swingEnvelope = Math.sin(2 * Math.PI * 0.5 * t) * 0.4 + 0.6;
-                    
-                    // Eine zusätzliche, ultra-leichte, glückliche Melodienote alle 1 Sekunde einstreuen
                     let melody = 0;
                     const subT = t % 1.0;
                     if (subT < 0.15) {
-                        const melFreq = 392.00 * (1 + ((Math.floor(t) % 4) * 0.25)); // Treppen-Arpeggio
+                        const melFreq = 392.00 * (1 + ((Math.floor(t) % 4) * 0.25));
                         melody = Math.sin(2 * Math.PI * melFreq * t) * Math.exp(-25 * subT);
                     }
                     
@@ -953,8 +955,7 @@
 
             scene.background = new THREE.Color(0x333333);
             camera.aspect = window.innerWidth / window.innerHeight;
-            // FIX 3: Minimal weites Rauszoomen der Kamera für bessere Raumübersicht
-            camera.position.set(0, 4.6, 7.8); 
+            camera.position.set(0, 4.6, 7.8);
             camera.lookAt(0, 0.8, 0);
             camera.updateProjectionMatrix();
 
@@ -962,7 +963,6 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
-
             const floorMat = new THREE.MeshStandardMaterial({color: 0x5c4033, roughness: 0.7});
             const floor = new THREE.Mesh(new THREE.BoxGeometry(14, 0.2, 10), floorMat);
             floor.position.y = -0.1;
@@ -972,7 +972,6 @@
             const carpet = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.02, 3.5), carpetMat);
             carpet.position.set(0, 0.01, 0);
             scene.add(carpet);
-
             const wallMat = new THREE.MeshStandardMaterial({color: 0xe67e22, roughness: 0.6});
             const backWall = new THREE.Mesh(new THREE.BoxGeometry(14, 6, 0.2), wallMat);
             backWall.position.set(0, 3, -5);
@@ -982,7 +981,6 @@
             const sky = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 2.2), skyMat);
             sky.position.set(0, 3.5, -4.95);
             scene.add(sky);
-
             const windowGroup = new THREE.Group();
             windowGroup.position.set(0, 3.5, -4.9);
             
@@ -1040,6 +1038,32 @@
             avatarFriend.userData.labelEl = createPermanentLabel("friend");
         }
 
+        // --- 8.1 CAMERA ZOOM HANDLING ACTION ---
+        function setupZoomHandler() {
+            const minZ = 3.0;
+            const maxZ = 15.0;
+            const zoomSpeed = 0.005;
+
+            window.addEventListener('wheel', (e) => {
+                if (!isChatroomActive) return;
+                e.preventDefault();
+
+                // Berechnet die neue Richtung basierend auf dem Vektor der Kamera zum Ziel
+                let currentZ = camera.position.z + e.deltaY * zoomSpeed;
+                
+                // Grenzt den Zoom-Faktor sauber ein, um Glitches im 3D-Raum komplett zu verhindern
+                if (currentZ < minZ) currentZ = minZ;
+                if (currentZ > maxZ) currentZ = maxZ;
+
+                camera.position.z = currentZ;
+                // Passt Y proportional an, um den Neigungswinkel (LookAt) konstant beizubehalten
+                camera.position.y = 0.589 * currentZ; 
+
+                camera.lookAt(0, 0.8, 0);
+                camera.updateProjectionMatrix();
+            }, { passive: false });
+        }
+
         function updateOverlayPosition(meshGroup, domElement, yOffset) {
             if (!meshGroup || !domElement) return;
             const tempV = new THREE.Vector3();
@@ -1066,9 +1090,8 @@
                 wireframeCube.rotation.x += 0.01;
                 wireframeCube.rotation.y -= 0.01;
             } else {
-                // FIX 2: Roblox-Style fließende Looping-Atemanimation für die Avatare
                 const breatheTime = Date.now() * 0.003;
-                const breatheScale = 1.0 + Math.sin(breatheTime) * 0.03; // Minimale, fließende Größenänderung
+                const breatheScale = 1.0 + Math.sin(breatheTime) * 0.03;
                 
                 if (avatarYou) {
                     avatarYou.scale.set(breatheScale, breatheScale, breatheScale);
