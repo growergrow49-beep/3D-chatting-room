@@ -7,110 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     
-    <style>
-        /* Grund-Setup: Vollbild und schwarzer Hintergrund für das Login */
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #000000;
-            font-family: Arial, sans-serif;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        /* Das Login-Kästchen - Jetzt weiter oben für Mobile & iPad Tastaturen */
-        #login-container {
-            position: absolute;
-            top: 25%; /* Höher platziert */
-            left: 50%;
-            transform: translate(-50%, -25%);
-            width: 320px;
-            max-width: 90%; /* Perfekt für schmale Handys */
-            background: rgba(20, 20, 20, 0.9);
-            border: 2px solid #00ff00;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 0 20px rgba(0, 250, 0, 0.2);
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: #ffffff;
-            box-sizing: border-box;
-        }
-
-        /* "your id" Text oben links im Kästchen */
-        .id-label {
-            align-self: flex-start;
-            font-size: 12px;
-            color: #888;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* Anzeige der eigenen 6-stelligen ID */
-        #my-id-display {
-            font-size: 24px;
-            font-weight: bold;
-            color: #00ff00;
-            letter-spacing: 2px;
-            margin-bottom: 20px;
-            align-self: flex-start;
-        }
-
-        /* Das Input-Feld für die ID des Freundes */
-        #friend-id-input {
-            width: 100%;
-            padding: 14px; /* Etwas größer für leichtere Touch-Bedienung */
-            background: #222;
-            border: 1px solid #444;
-            border-radius: 5px;
-            color: #fff;
-            font-size: 16px;
-            text-align: center;
-            outline: none;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-            -webkit-appearance: none; /* Verhindert iOS-Standard-Styling */
-        }
-
-        #friend-id-input:focus {
-            border-color: #00ff00;
-        }
-
-        /* Der Connect-Button (Standard: Grau und unklickbar) */
-        #connect-btn {
-            width: 100%;
-            margin-top: 15px;
-            padding: 14px;
-            background-color: #555555;
-            color: #888888;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: not-allowed;
-            transition: all 0.3s ease;
-            -webkit-appearance: none;
-        }
-
-        /* Aktiver Zustand des Connect-Buttons, wenn 6 Zahlen eingegeben wurden */
-        #connect-btn.active {
-            background-color: #00ff00;
-            color: #000000;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
-        }
-
-        /* Status-Meldungen im Kästchen */
-        #status-text {
-            font-size: 12px;
-            color: #aaa;
-            margin-top: 10px;
-            text-align: center;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -143,6 +40,7 @@
             statusText.innerText = "Bereit für Verbindung.";
         });
 
+        // Validierung: Nur Nummern, Aktivierung bei exakt 6 Zeichen
         friendInput.addEventListener('input', () => {
             friendInput.value = friendInput.value.replace(/[^0-9]/g, '');
             
@@ -155,6 +53,7 @@
             }
         });
 
+        // Verbindung aufbauen
         connectBtn.addEventListener('click', () => {
             const friendId = friendInput.value;
             statusText.innerText = "Verbinde mit " + friendId + "...";
@@ -167,6 +66,7 @@
             });
         });
 
+        // Eingehende Verbindung akzeptieren
         peer.on('connection', (conn) => {
             statusText.innerText = "Eingehende Verbindung...";
             conn.on('open', () => {
@@ -186,17 +86,17 @@
         let scene, camera, renderer, wireframeCube;
         let isChatroomActive = false;
 
+        // Login-Szene (Würfel unten zentriert)
         function initLoginScene() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x000000);
 
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            // Kamera leicht nach unten verschoben, damit der Würfel tiefer sitzt als das Kästchen
-            camera.position.set(0, -0.8, 5);
+            camera.position.set(0, -0.8, 5); // Würfel sitzt tiefer
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Schont den iPad-Akku
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.body.appendChild(renderer.domElement);
 
             const geometry = new THREE.BoxGeometry(1.4, 1.4, 1.4);
@@ -210,6 +110,7 @@
             animate();
         }
 
+        // Chatraum-Szene aktivieren
         function initChatroom() {
             while(scene.children.length > 0){ 
                 scene.remove(scene.children[0]); 
@@ -295,6 +196,7 @@
             requestAnimationFrame(animate);
 
             if (!isChatroomActive) {
+                // Diagonal-Rotation (oben rechts nach unten rechts)
                 wireframeCube.rotation.x += 0.01;
                 wireframeCube.rotation.y -= 0.01;
             }
@@ -302,6 +204,7 @@
             renderer.render(scene, camera);
         }
 
+        // Dynamisches Resize für iPad/Handy Orientierungswechsel
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
