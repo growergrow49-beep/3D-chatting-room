@@ -81,6 +81,7 @@
         let dataConnection = null;
         let avatarYou, avatarFriend;
         const activeBubbles = { you: null, friend: null };
+        
         // Web Audio Infrastructure
         let audioCtx = null;
         let bkgMusicNode = null;
@@ -88,6 +89,7 @@
         const BASE_MUSIC_VOLUME = 0.36;
         const DUCKED_MUSIC_VOLUME = 0.08;
         let isAudioSuspendedLocally = false;
+        
         // Call Media State
         let currentPeerCall = null;
         let currentScreenShareCall = null;
@@ -97,7 +99,7 @@
         let isDeafened = false;
         let isCameraOn = false;
         let activeCallType = null; // 'audio' or 'video'
-        let isInCallMode = false; // Tracks if overlay UI mode is active
+        let isInCallMode = false;
 
         // Audio Recording Runtime Variables
         let audioRecorder = null;
@@ -115,6 +117,7 @@
         const peer = new Peer(myId, {
             config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }, { 'urls': 'stun:stun1.l.google.com:19302' }] }
         });
+
         const friendInput = document.getElementById('friend-id-input');
         const connectBtn = document.getElementById('connect-btn');
         const statusText = document.getElementById('status-text');
@@ -190,7 +193,6 @@
                     dataConnection.send({ type: 'writing', status: chatInput.value.length > 0 });
                 }
             });
-
             chatInput.addEventListener('blur', () => {
                 if (dataConnection) {
                     dataConnection.send({ type: 'writing', status: false });
@@ -263,7 +265,6 @@
                 
                 playAnimalVoiceTick(text.charCodeAt(charIndex));
                 charIndex++;
-                // FIX 4: Verlangsamter Schreib-Effekt (von 60ms auf 110ms) für ein natürlicheres Lesen
                 setTimeout(printCharacter, 110);
             }
 
@@ -289,11 +290,9 @@
                 e.stopPropagation();
                 menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
             });
-
             document.addEventListener('click', () => {
                 menu.style.display = 'none';
             });
-
             document.querySelectorAll('.menu-item-action').forEach(item => {
                 item.addEventListener('click', function() {
                     const action = this.getAttribute('data-action');
@@ -302,11 +301,9 @@
                     if (action === 'camera') document.getElementById('hidden-camera-element').click();
                 });
             });
-
             const hiddenFile = document.getElementById('hidden-file-element');
             const hiddenGallery = document.getElementById('hidden-gallery-element');
             const hiddenCamera = document.getElementById('hidden-camera-element');
-
             const uploadProcessor = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -329,7 +326,6 @@
             hiddenFile.addEventListener('change', uploadProcessor);
             hiddenGallery.addEventListener('change', uploadProcessor);
             hiddenCamera.addEventListener('change', uploadProcessor);
-
             document.getElementById('lightbox-close-btn').addEventListener('click', () => {
                 const overlay = document.getElementById('lightbox-overlay');
                 const holder = document.getElementById('lightbox-content-holder');
@@ -451,6 +447,7 @@
             document.getElementById('deafen-btn').addEventListener('click', toggleDeafen);
             document.getElementById('camera-toggle-btn').addEventListener('click', toggleCameraState);
             document.getElementById('hangup-btn').addEventListener('click', terminateActiveCall);
+
             peer.on('call', (call) => {
                 if (call.metadata && call.metadata.isScreenShare) {
                     promptScreenShareAcceptance(call);
@@ -468,23 +465,23 @@
             } else if (data.action === 'upgrade-declined') {
                 alert("Friend declined camera activation.");
             } else if (data.action === 'accept-notify') {
-                // Von Gegenstelle benachrichtigt, dass abgehoben wurde -> Bleibe im Modus und passe Text an
-                document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video Call Active' : 'Voice Call Active';
+                // Partner hat abgenommen -> Zustand des Vollbildschirms updaten
+                const modal = document.getElementById('call-overlay-modal');
+                document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
             }
         }
 
         async function initiateCallFlow(type) {
             activeCallType = type;
-            
-            // FIX 1 & 2: Vollbildschirm-Modus starten, Texte setzen & 3D-Namen ausblenden
             isInCallMode = true;
             toggle3DLabelsVisibility(false);
             
+            // Vollbild-Modal aufbauen
             const modal = document.getElementById('call-overlay-modal');
-            document.getElementById('modal-title').innerText = "Calling friend...";
+            document.getElementById('modal-title').innerText = "Calling your friend...";
             document.getElementById('modal-description').innerText = `Initiating ${type === 'video' ? 'Video' : 'Voice'} Call connection.`;
-            document.getElementById('modal-actions-wrapper').style.display = 'none'; // Keine Knöpfe für den Anrufer
+            document.getElementById('modal-actions-wrapper').style.display = 'none'; 
             modal.style.display = 'flex';
             
             updateStatusLabelText("Calling friend...");
@@ -500,6 +497,7 @@
                 if (type === 'video') {
                     document.getElementById('video-streams-container').style.display = 'block';
                     document.getElementById('my-video-preview').srcObject = localMediaStream;
+                    document.getElementById('my-video-preview').style.display = 'block';
                 }
 
                 if (dataConnection) {
@@ -519,8 +517,6 @@
         function promptIncomingCallAcceptance(call) {
             const type = call.metadata ? call.metadata.callType : 'audio';
             activeCallType = type;
-            
-            // FIX 1 & 2: Vollbild-Anrufbildschirm für den Angerufenen anzeigen & Namensschilder entfernen
             isInCallMode = true;
             toggle3DLabelsVisibility(false);
             
@@ -534,11 +530,9 @@
             const declineBtn = document.getElementById('modal-decline-btn');
 
             acceptBtn.onclick = async () => {
-                // FIX 1: Verbleibe im Vollbildmodus, blende nur die Aktions-Knöpfe aus und ändere Text
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
-                document.getElementById('modal-title').innerText = type === 'video' ? 'Video Call Active' : 'Voice Call Active';
+                document.getElementById('modal-title').innerText = type === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
-                
                 if (dataConnection) {
                     dataConnection.send({ type: 'call-signaling', action: 'accept-notify' });
                 }
@@ -554,6 +548,7 @@
                     if (type === 'video') {
                         document.getElementById('video-streams-container').style.display = 'block';
                         document.getElementById('my-video-preview').srcObject = localMediaStream;
+                        document.getElementById('my-video-preview').style.display = 'block';
                     }
 
                     call.answer(localMediaStream);
@@ -576,12 +571,19 @@
             manageLocalAudioSuspension(true);
             toggleCallControlButtonsVisibility(true);
 
+            // Setze Text des Fensters auf Aktiv (Falls man angerufen hat und der Partner nun akzeptiert hat)
+            const modal = document.getElementById('call-overlay-modal');
+            if (modal.style.display === 'flex' && document.getElementById('modal-title').innerText === "Calling your friend...") {
+                document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
+                document.getElementById('modal-description').innerText = "Connected with friend.";
+            }
+
             call.on('stream', (remoteStream) => {
-                // Falls es ein normaler Anrufstrom ist und KEIN reiner ScreenShare-Empfang
                 if (call.metadata && call.metadata.isScreenShare) return;
 
                 const friendVideo = document.getElementById('friend-video-view');
                 friendVideo.srcObject = remoteStream;
+          
                 if (activeCallType === 'audio') {
                     friendVideo.style.display = 'none';
                 } else {
@@ -627,6 +629,7 @@
         }
 
         function toggleCameraState() {
+            if (!localMediaStream) return;
             if (activeCallType === 'audio' && !isCameraOn) {
                 if (dataConnection) {
                     dataConnection.send({ type: 'call-signaling', action: 'upgrade-request' });
@@ -636,11 +639,17 @@
                 localMediaStream.getVideoTracks().forEach(t => t.enabled = isCameraOn);
                 document.getElementById('my-video-preview').style.display = isCameraOn ? 'block' : 'none';
                 document.getElementById('camera-toggle-btn').classList.toggle('control-disabled-state', !isCameraOn);
+                
+                if (isCameraOn && activeCallType === 'video') {
+                    document.getElementById('video-streams-container').style.display = 'block';
+                    document.getElementById('modal-title').innerText = 'Video call active';
+                } else if (!isCameraOn && activeCallType === 'video') {
+                    // Falls alle Kameras aus sind, bleibt es strukturell ein Video Call
+                }
             }
         }
 
         function promptCallUpgradeRequest() {
-            // Im aktiven Vollbildschirm-Modus ein temporäres Upgrade-Schild aufblenden
             const modal = document.getElementById('call-overlay-modal');
             document.getElementById('modal-title').innerText = "Upgrade to Video Call";
             document.getElementById('modal-description').innerText = "Friend wants to activate their camera. Confirm?";
@@ -649,14 +658,14 @@
 
             document.getElementById('modal-accept-btn').onclick = () => {
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
-                document.getElementById('modal-title').innerText = 'Video Call Active';
+                document.getElementById('modal-title').innerText = 'Video call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
                 if (dataConnection) dataConnection.send({ type: 'call-signaling', action: 'upgrade-approved' });
                 executeCameraUpgrade();
             };
             document.getElementById('modal-decline-btn').onclick = () => {
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
-                document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video Call Active' : 'Voice Call Active';
+                document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
                 if (dataConnection) dataConnection.send({ type: 'call-signaling', action: 'upgrade-declined' });
             };
@@ -689,6 +698,8 @@
                 document.getElementById('my-video-preview').style.display = 'block';
                 document.getElementById('my-video-preview').srcObject = localMediaStream;
                 document.getElementById('camera-toggle-btn').classList.remove('control-disabled-state');
+                
+                document.getElementById('modal-title').innerText = 'Video call active';
             } catch (e) {
                 console.error("Camera upgrade execution acquisition crash:", e);
             }
@@ -702,7 +713,6 @@
             }
 
             try {
-                // FIX 3: Startet die echte Bildschirmübertragung (getDisplayMedia) und streamt an den Partner
                 screenShareStream = await navigator.mediaDevices.getDisplayMedia({ 
                     video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } },
                     audio: true 
@@ -710,18 +720,17 @@
                 const friendId = dataConnection.peer;
                 const shareCall = peer.call(friendId, screenShareStream, { metadata: { isScreenShare: true } });
                 currentScreenShareCall = shareCall;
-                
                 screenShareStream.getVideoTracks()[0].onended = () => {
                     stopScreenShareInstance();
                 };
                 document.getElementById('screenshare-btn').classList.add('sharing-active-frame');
+                document.getElementById('modal-description').innerText = "Connected with friend (Sharing your Screen).";
             } catch (err) {
                 console.error("Error sourcing display capture media streams:", err);
             }
         }
 
         function promptScreenShareAcceptance(call) {
-            // Im Call-Modus blenden wir temporär Knöpfe für den Screen-Share-Request ein
             const modal = document.getElementById('call-overlay-modal');
             document.getElementById('modal-title').innerText = "Screen Share Stream";
             document.getElementById('modal-description').innerText = "Friend wants to share their screen. Watch?";
@@ -730,7 +739,7 @@
 
             document.getElementById('modal-accept-btn').onclick = () => {
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
-                document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video Call Active' : 'Voice Call Active';
+                document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend (Viewing Screen Share).";
                 
                 currentScreenShareCall = call;
@@ -747,7 +756,7 @@
 
             document.getElementById('modal-decline-btn').onclick = () => {
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
-                document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video Call Active' : 'Voice Call Active';
+                document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
                 call.close();
             };
@@ -763,11 +772,7 @@
                 currentScreenShareCall = null;
             }
             document.getElementById('screenshare-btn').classList.remove('sharing-active-frame');
-            
-            // Wenn der Call noch aktiv ist, setze den Video-Stream des Freundes auf die normale Ansicht zurück
-            if (currentPeerCall && currentPeerCall.localStream) {
-                // Der Stream fängt sich automatisch über den bestehenden peer.on('stream') Event-Listener
-            }
+            document.getElementById('modal-description').innerText = "Connected with friend.";
         }
 
         function terminateActiveCall() {
@@ -800,13 +805,11 @@
             updateStatusLabelText("");
             manageLocalAudioSuspension(false);
             
-            // Verlasse Anruf-Bildschirm & blende 3D-Schilder wieder ein
             isInCallMode = false;
             document.getElementById('call-overlay-modal').style.display = 'none';
             toggle3DLabelsVisibility(true);
         }
 
-        // Hilfsfunktion zur Steuerung der 3D-Namensschild-Sichtbarkeit
         function toggle3DLabelsVisibility(visible) {
             if (avatarYou && avatarYou.userData.labelEl) {
                 avatarYou.userData.labelEl.style.visibility = visible ? 'visible' : 'hidden';
@@ -822,17 +825,38 @@
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContextClass();
                 
-                const bufferSize = audioCtx.sampleRate * 4;
+                // Animal Crossing gemütlicher Background-Akkord & Melodieverlauf Synthesizer
+                const bufferSize = audioCtx.sampleRate * 8; // 8 Sekunden Loop-Länge
                 const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                 const data = buffer.getChannelData(0);
                 
+                // Generiere gemütliche, schaukelnde Marimba/Gitarren-Akkorde im Nintendo-Stil
                 for (let i = 0; i < bufferSize; i++) {
                     const t = i / audioCtx.sampleRate;
-                    const chord1 = Math.sin(2 * Math.PI * 146.83 * t);
-                    const chord2 = Math.sin(2 * Math.PI * 220.00 * t);
-                    const chord3 = Math.sin(2 * Math.PI * 293.66 * t);
-                    const rhythmicEnvelope = Math.sin(2 * Math.PI * 0.25 * t) * 0.5 + 0.5;
-                    data[i] = ((chord1 + chord2 * 0.5 + chord3 * 0.2) * 0.3) * rhythmicEnvelope;
+                    
+                    // Akkordwechsel alle 2 Sekunden (G - C - D - G)
+                    let f1 = 196.00, f2 = 246.94, f3 = 293.66; // G-Dur
+                    if (t > 2.0 && t <= 4.0) { f1 = 261.63; f2 = 329.63; f3 = 392.00; } // C-Dur
+                    else if (t > 4.0 && t <= 6.0) { f1 = 293.66; f2 = 369.99; f3 = 440.00; } // D-Dur
+                    else if (t > 6.0) { f1 = 196.00; f2 = 246.94; f3 = 392.00; } // G-Dur Variante
+                    
+                    // Sanfte Sinuswellen
+                    const wave1 = Math.sin(2 * Math.PI * f1 * t);
+                    const wave2 = Math.sin(2 * Math.PI * f2 * t);
+                    const wave3 = Math.sin(2 * Math.PI * f3 * t);
+                    
+                    // Animal Crossing typische wellenartige Akzentuierung (0.5 Hz Rhythmus)
+                    const swingEnvelope = Math.sin(2 * Math.PI * 0.5 * t) * 0.4 + 0.6;
+                    
+                    // Eine zusätzliche, ultra-leichte, glückliche Melodienote alle 1 Sekunde einstreuen
+                    let melody = 0;
+                    const subT = t % 1.0;
+                    if (subT < 0.15) {
+                        const melFreq = 392.00 * (1 + ((Math.floor(t) % 4) * 0.25)); // Treppen-Arpeggio
+                        melody = Math.sin(2 * Math.PI * melFreq * t) * Math.exp(-25 * subT);
+                    }
+                    
+                    data[i] = (((wave1 + wave2 * 0.6 + wave3 * 0.4) * 0.2) * swingEnvelope) + (melody * 0.15);
                 }
 
                 bkgMusicNode = audioCtx.createBufferSource();
@@ -929,7 +953,8 @@
 
             scene.background = new THREE.Color(0x333333);
             camera.aspect = window.innerWidth / window.innerHeight;
-            camera.position.set(0, 4.5, 7.5); 
+            // FIX 3: Minimal weites Rauszoomen der Kamera für bessere Raumübersicht
+            camera.position.set(0, 4.6, 7.8); 
             camera.lookAt(0, 0.8, 0);
             camera.updateProjectionMatrix();
 
@@ -992,19 +1017,16 @@
             scene.add(table);
 
             avatarYou = new THREE.Group();
-            avatarYou.position.set(2.1, 0.75, 0); 
-            
+            avatarYou.position.set(2.1, 0.75, 0);
             const bodyYou = new THREE.Mesh(new THREE.SphereGeometry(0.45, 32, 32), new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.4 }));
             bodyYou.castShadow = true;
             avatarYou.add(bodyYou);
-            
             const leftEyeYou = createEye(true); leftEyeYou.position.set(-0.35, 0.15, 0.15);
             const rightEyeYou = createEye(true); rightEyeYou.position.set(-0.35, 0.15, -0.15);
             avatarYou.add(leftEyeYou, rightEyeYou);
             scene.add(avatarYou);
             
             avatarYou.userData.labelEl = createPermanentLabel("you");
-
             avatarFriend = new THREE.Group();
             avatarFriend.position.set(-2.1, 0.75, 0);
             const bodyFriend = new THREE.Mesh(new THREE.SphereGeometry(0.45, 32, 32), new THREE.MeshStandardMaterial({ color: 0x0055ff, roughness: 0.4 }));
@@ -1044,7 +1066,17 @@
                 wireframeCube.rotation.x += 0.01;
                 wireframeCube.rotation.y -= 0.01;
             } else {
-                // FIX 2: Wenn wir uns im Call-Modus befinden, werden Positionsberechnungen für Namensschilder übersprungen
+                // FIX 2: Roblox-Style fließende Looping-Atemanimation für die Avatare
+                const breatheTime = Date.now() * 0.003;
+                const breatheScale = 1.0 + Math.sin(breatheTime) * 0.03; // Minimale, fließende Größenänderung
+                
+                if (avatarYou) {
+                    avatarYou.scale.set(breatheScale, breatheScale, breatheScale);
+                }
+                if (avatarFriend) {
+                    avatarFriend.scale.set(breatheScale, breatheScale, breatheScale);
+                }
+
                 if (!isInCallMode) {
                     updateOverlayPosition(avatarYou, avatarYou.userData.labelEl, 0.7);
                     updateOverlayPosition(avatarFriend, avatarFriend.userData.labelEl, 0.7);
