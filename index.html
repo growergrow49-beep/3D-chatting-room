@@ -20,9 +20,28 @@
         <div id="status-text">Generiere Peer-ID...</div>
     </div>
 
+    <div id="chat-interface" style="display: none;">
+        <div id="chat-messages"></div>
+        <div id="writing-status"></div>
+        <div id="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Klicke hier zum Chatten..." autocomplete="off">
+            <button id="send-btn">Senden</button>
+        </div>
+    </div>
+
+    <div id="labels-container"></div>
+
     <script>
-        // --- 1. PEERJS LOGIK (6-STELLIGE ID GENERIEREN & VERBINDEN) ---
+        // --- 1. GLOBALE VARIABLEN & DATEN-LINK ---
+        let scene, camera, renderer, wireframeCube;
+        let isChatroomActive = false;
+        let dataConnection = null;
         
+        // 3D-Referenzen für Sprechblasen-Berechnung
+        let avatarYou, avatarFriend;
+        const activeBubbles = { you: null, friend: null };
+
+        // --- 2. PEERJS LOGIK (6-STELLIGE ID GENERIEREN & VERBINDEN) ---
         function generate6DigitId() {
             return Math.floor(100000 + Math.random() * 900000).toString();
         }
@@ -40,10 +59,8 @@
             statusText.innerText = "Bereit für Verbindung.";
         });
 
-        // Validierung: Nur Nummern, Aktivierung bei exakt 6 Zeichen
         friendInput.addEventListener('input', () => {
             friendInput.value = friendInput.value.replace(/[^0-9]/g, '');
-            
             if (friendInput.value.length === 6) {
                 connectBtn.classList.add('active');
                 connectBtn.disabled = false;
@@ -53,46 +70,141 @@
             }
         });
 
-        // Verbindung aufbauen
         connectBtn.addEventListener('click', () => {
             const friendId = friendInput.value;
             statusText.innerText = "Verbinde mit " + friendId + "...";
-            
             const conn = peer.connect(friendId);
-            
-            conn.on('open', () => {
+            setupConnection(conn);
+        });
+
+        peer.on('connection', (conn) => {
+            statusText.innerText = "Eingehende Verbindung...";
+            setupConnection(conn);
+        });
+
+        function setupConnection(conn) {
+            dataConnection = conn;
+            dataConnection.on('open', () => {
                 statusText.innerText = "Verbunden!";
                 switchToChatroom();
             });
-        });
-
-        // Eingehende Verbindung akzeptieren
-        peer.on('connection', (conn) => {
-            statusText.innerText = "Eingehende Verbindung...";
-            conn.on('open', () => {
-                switchToChatroom();
+            
+            dataConnection.on('data', (data) => {
+                if (data.type === 'chat') {
+                    // Nachricht empfangen (kommt vom Freund)
+                    appendChatMessage("Friend", data.text);
+                    show3DBubble('friend', data.text);
+                } else if (data.type === 'writing') {
+                    const writingStatus = document.getElementById('writing-status');
+                    if (data.status) {
+                        writingStatus.innerText = "friend is writing...";
+                    } else {
+                        writingStatus.innerText = "";
+                    }
+                }
             });
-        });
+        }
 
         function switchToChatroom() {
             document.getElementById('login-container').style.display = 'none';
+            document.getElementById('chat-interface').style.display = 'flex';
             isChatroomActive = true;
             initChatroom();
+            setupChatListeners();
         }
 
+        // --- 3. ROBLOX CHAT LOGIK ---
+        function setupChatListeners() {
+            const chatInput = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('send-btn');
 
-        // --- 2. THREE.JS 3D SZENEN LOGIK ---
+            // "Is writing..." Event-Trigger
+            chatInput.addEventListener('input', () => {
+                if (dataConnection) {
+                    dataConnection.send({ type: 'writing', status: chatInput.value.length > 0 });
+                }
+            });
 
-        let scene, camera, renderer, wireframeCube;
-        let isChatroomActive = false;
+            chatInput.addEventListener('blur', () => {
+                if (dataConnection) {
+                    dataConnection.send({ type: 'writing', status: false });
+                }
+            });
 
-        // Login-Szene (Würfel unten zentriert)
+            // Senden-Funktion
+            function sendMessage() {
+                const text = chatInput.value.trim();
+                if (text === "") return;
+
+                // Eigene Nachricht lokal anzeigen
+                appendChatMessage("You", text);
+                show3DBubble('you', text);
+
+                // Nachricht an Freund senden
+                if (dataConnection) {
+                    dataConnection.send({ type: 'chat', text: text });
+                    dataConnection.send({ type: 'writing', status: false });
+                }
+
+                chatInput.value = "";
+            }
+
+            sendBtn.addEventListener('click', sendMessage);
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendMessage();
+            });
+        }
+
+        function appendChatMessage(sender, text) {
+            const chatMessages = document.getElementById('chat-messages');
+            const msgEl = document.createElement('div');
+            msgEl.className = 'chat-message';
+            msgEl.innerHTML = `<span class="chat-sender">${sender}:</span> ${text}`;
+            chatMessages.appendChild(msgEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Erstellt und verwaltet die 3D-Sprechblasen im Raum für 15 Sekunden
+        function show3DBubble(target, text) {
+            const container = document.getElementById('labels-container');
+            
+            // Falls alte Sprechblase existiert, entfernen
+            if (activeBubbles[target]) {
+                activeBubbles[target].remove();
+            }
+
+            const bubble = document.createElement('div');
+            bubble.className = 'roblox-bubble';
+            bubble.innerText = text;
+            container.appendChild(bubble);
+            activeBubbles[target] = bubble;
+
+            // Nach 15 Sekunden zerstören
+            setTimeout(() => {
+                if (activeBubbles[target] === bubble) {
+                    bubble.remove();
+                    activeBubbles[target] = null;
+                }
+            }, 15000);
+        }
+
+        // Hilfsfunktion zur Erstellung permanenter Namensschilder ("you" / "friend")
+        function createPermanentLabel(text) {
+            const container = document.getElementById('labels-container');
+            const label = document.createElement('div');
+            label.className = 'roblox-name-label';
+            label.innerText = text;
+            container.appendChild(label);
+            return label;
+        }
+
+        // --- 4. THREE.JS 3D SZENEN LOGIK ---
         function initLoginScene() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x000000);
 
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, -0.8, 5); // Würfel sitzt tiefer
+            camera.position.set(0, -0.8, 5);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -110,7 +222,28 @@
             animate();
         }
 
-        // Chatraum-Szene aktivieren
+        // Hilfsfunktion: Baut ein Auge bestehend aus weißer Kugel und schwarzer Pupille
+        function createEye(isLookingLeft) {
+            const eyeGroup = new THREE.Group();
+            
+            // Augapfel (Weiß)
+            const eyeballGeo = new THREE.SphereGeometry(0.12, 16, 16);
+            const eyeballMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const eyeball = new THREE.Mesh(eyeballGeo, eyeballMat);
+            eyeGroup.add(eyeball);
+            
+            // Pupille (Schwarz)
+            const pupilGeo = new THREE.SphereGeometry(0.05, 16, 16);
+            const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const pupil = new THREE.Mesh(pupilGeo, pupilMat);
+            
+            // Pupille nach vorne und leicht in Blickrichtung versetzen
+            pupil.position.set(isLookingLeft ? -0.04 : 0.04, 0, 0.09);
+            eyeGroup.add(pupil);
+            
+            return eyeGroup;
+        }
+
         function initChatroom() {
             while(scene.children.length > 0){ 
                 scene.remove(scene.children[0]); 
@@ -148,23 +281,26 @@
             backWall.position.set(0, 3, -5);
             scene.add(backWall);
 
-            // 4. Fenster
-            const skyMat = new THREE.MeshBasicMaterial({color: 0x5dade2});
+            // 4. Fenster mit blauem Himmel & gekreuzten weißen Stangen
+            const skyMat = new THREE.MeshBasicMaterial({color: 0x1a75ff}); // Sattes Blau im Hintergrund
             const sky = new THREE.Mesh(new THREE.PlaneGeometry(3, 2), skyMat);
             sky.position.set(0, 3.5, -4.95);
             scene.add(sky);
 
             const windowGroup = new THREE.Group();
             windowGroup.position.set(0, 3.5, -4.9);
-            const glassMat = new THREE.MeshStandardMaterial({color: 0xffffff, transparent: true, opacity: 0.3, roughness: 0.1});
-            const glass = new THREE.Mesh(new THREE.PlaneGeometry(3, 2), glassMat);
-            windowGroup.add(glass);
-
-            const frameMat = new THREE.MeshStandardMaterial({color: 0xffffff});
-            const frameGeo = new THREE.BoxGeometry(0.1, 2.1, 0.15);
-            const borderLeft = new THREE.Mesh(frameGeo, frameMat); borderLeft.position.set(-1.5, 0, 0);
-            const borderRight = new THREE.Mesh(frameGeo, frameMat); borderRight.position.set(1.5, 0, 0);
-            windowGroup.add(borderLeft, borderRight);
+            
+            const frameMat = new THREE.MeshStandardMaterial({color: 0xffffff, roughness: 0.4});
+            const borderLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.1, 0.15), frameMat); borderLeft.position.set(-1.5, 0, 0);
+            const borderRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.1, 0.15), frameMat); borderRight.position.set(1.5, 0, 0);
+            const borderTop = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.1, 0.15), frameMat); borderTop.position.set(0, 1, 0);
+            const borderBottom = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.1, 0.15), frameMat); borderBottom.position.set(0, -1, 0);
+            
+            // Gekreuzte weiße Stangen (Innere Sprossen)
+            const vertBar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.0, 0.1), frameMat);
+            const horizBar = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.06, 0.1), frameMat);
+            
+            windowGroup.add(borderLeft, borderRight, borderTop, borderBottom, vertBar, horizBar);
             scene.add(windowGroup);
 
             // 5. Deckenlampe
@@ -190,21 +326,86 @@
             table.position.set(0, 0.3, 0);
             table.castShadow = true;
             scene.add(table);
+
+            // --- AVATARE IN DEN RAUM BAUEN ---
+
+            // A. Du (Rote Kugel am RECHTEN Ende des Tisches, schaut nach links)
+            avatarYou = new THREE.Group();
+            avatarYou.position.set(1.3, 0.9, 0); // Position rechts auf dem Tisch
+            
+            const bodyYou = new THREE.Mesh(new THREE.SphereGeometry(0.35, 32, 32), new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.4 }));
+            bodyYou.castShadow = true;
+            avatarYou.add(bodyYou);
+            
+            // Augen für die rote Kugel (schauen nach links -> also im Code nach links orientiert)
+            const leftEyeYou = createEye(true); leftEyeYou.position.set(-0.12, 0.1, 0.25);
+            const rightEyeYou = createEye(true); rightEyeYou.position.set(0.12, 0.1, 0.25);
+            avatarYou.add(leftEyeYou, rightEyeYou);
+            scene.add(avatarYou);
+            
+            // Permanentes Namensschild "you" initialisieren
+            avatarYou.userData.labelEl = createPermanentLabel("you");
+
+            // B. Freund (Blaue Kugel am LINKEN Ende des Tisches, schaut nach rechts)
+            avatarFriend = new THREE.Group();
+            avatarFriend.position.set(-1.3, 0.9, 0); // Position links auf dem Tisch
+            
+            const bodyFriend = new THREE.Mesh(new THREE.SphereGeometry(0.35, 32, 32), new THREE.MeshStandardMaterial({ color: 0x0055ff, roughness: 0.4 }));
+            bodyFriend.castShadow = true;
+            avatarFriend.add(bodyFriend);
+            
+            // Augen für die blaue Kugel (schauen nach rechts -> im Code nach rechts orientiert)
+            const leftEyeFriend = createEye(false); leftEyeFriend.position.set(-0.12, 0.1, 0.25);
+            const rightEyeFriend = createEye(false); rightEyeFriend.position.set(0.12, 0.1, 0.25);
+            avatarFriend.add(leftEyeFriend, rightEyeFriend);
+            scene.add(avatarFriend);
+            
+            // Permanentes Namensschild "friend" initialisieren
+            avatarFriend.userData.labelEl = createPermanentLabel("friend");
+        }
+
+        // Projiziert eine 3D-Weltkoordinate auf den 2D-Bildschirm über das DOM-Overlay
+        function updateOverlayPosition(meshGroup, domElement, yOffset) {
+            if (!meshGroup || !domElement) return;
+            
+            const tempV = new THREE.Vector3();
+            meshGroup.getWorldPosition(tempV);
+            tempV.y += yOffset; // Höhe über dem Kopf justieren
+            
+            tempV.project(camera);
+            
+            // Überprüfung, ob das Objekt hinter der Kamera liegt
+            if (tempV.z > 1) {
+                domElement.style.display = 'none';
+                return;
+            }
+            
+            const x = (tempV.x * .5 + .5) * window.innerWidth;
+            const y = (tempV.y * -.5 + .5) * window.innerHeight;
+            
+            domElement.style.display = 'block';
+            domElement.style.left = `${x}px`;
+            domElement.style.top = `${y}px`;
         }
 
         function animate() {
             requestAnimationFrame(animate);
 
             if (!isChatroomActive) {
-                // Diagonal-Rotation (oben rechts nach unten rechts)
                 wireframeCube.rotation.x += 0.01;
                 wireframeCube.rotation.y -= 0.01;
+            } else {
+                // Tracking und Projektion der Text-Overlays über den Köpfen im Raum
+                updateOverlayPosition(avatarYou, avatarYou.userData.labelEl, 0.55);
+                updateOverlayPosition(avatarFriend, avatarFriend.userData.labelEl, 0.55);
+                
+                if (activeBubbles.you) updateOverlayPosition(avatarYou, activeBubbles.you, 0.95);
+                if (activeBubbles.friend) updateOverlayPosition(avatarFriend, activeBubbles.friend, 0.95);
             }
 
             renderer.render(scene, camera);
         }
 
-        // Dynamisches Resize für iPad/Handy Orientierungswechsel
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
