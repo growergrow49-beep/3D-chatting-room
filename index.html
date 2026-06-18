@@ -456,7 +456,6 @@
             document.getElementById('deafen-btn').addEventListener('click', toggleDeafen);
             document.getElementById('camera-toggle-btn').addEventListener('click', toggleCameraState);
             document.getElementById('hangup-btn').addEventListener('click', terminateActiveCall);
-
             peer.on('call', (call) => {
                 if (call.metadata && call.metadata.isScreenShare) {
                     promptScreenShareAcceptance(call);
@@ -474,7 +473,6 @@
             } else if (data.action === 'upgrade-declined') {
                 alert("Friend declined camera activation.");
             } else if (data.action === 'accept-notify') {
-                // Fix 1 & 2: Raum komplett schließen und Texte zentriert oben anzeigen
                 document.getElementById('chat-interface').style.display = 'none';
                 document.getElementById('call-controls-container').style.display = 'none';
                 if (renderer && renderer.domElement) renderer.domElement.style.display = 'none';
@@ -490,7 +488,6 @@
             isInCallMode = true;
             toggle3DLabelsVisibility(false);
             
-            // Fix 1 & 2: Schließe den normalen Raum komplett weg
             document.getElementById('chat-interface').style.display = 'none';
             document.getElementById('call-controls-container').style.display = 'none';
             if (renderer && renderer.domElement) renderer.domElement.style.display = 'none';
@@ -511,7 +508,6 @@
                 localMediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                 isCameraOn = type === 'video';
 
-                // Fix 1: Der Videocontainer ist nun der eigentliche, saubere Vollbildschirm
                 document.getElementById('video-streams-container').style.display = 'block';
                 if (type === 'video') {
                     document.getElementById('my-video-preview').srcObject = localMediaStream;
@@ -550,7 +546,6 @@
             const acceptBtn = document.getElementById('modal-accept-btn');
             const declineBtn = document.getElementById('modal-decline-btn');
             acceptBtn.onclick = async () => {
-                // Fix 1 & 2: Raum schließen, sobald man annimmt
                 document.getElementById('chat-interface').style.display = 'none';
                 document.getElementById('call-controls-container').style.display = 'none';
                 if (renderer && renderer.domElement) renderer.domElement.style.display = 'none';
@@ -737,7 +732,6 @@
             }
 
             try {
-                // Fix 3: Alert-Blockierung entfernt! Startet direkt das native Browser-Dialogfenster mit Audio-Optionen
                 screenShareStream = await navigator.mediaDevices.getDisplayMedia({ 
                     video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } },
                     audio: {
@@ -749,12 +743,12 @@
                 const friendId = dataConnection.peer;
                 const shareCall = peer.call(friendId, screenShareStream, { metadata: { isScreenShare: true } });
                 currentScreenShareCall = shareCall;
+                
                 screenShareStream.getVideoTracks()[0].onended = () => {
                     stopScreenShareInstance();
                 };
-                document.getElementById('screenshare-btn').classList.add('sharing-active-frame');
                 
-                // Fix 3: Live-Textänderung bei aktivem Screen-Sharing
+                document.getElementById('screenshare-btn').classList.add('sharing-active-frame');
                 document.getElementById('modal-description').innerText = "Screensharing is active";
                 document.getElementById('screenshare-status-indicator').style.display = 'block';
             } catch (err) {
@@ -763,7 +757,6 @@
         }
 
         function promptScreenShareAcceptance(call) {
-            // Fix 1 & 2: Vollbildmodus erzwingen und blockierenden Raum schließen
             document.getElementById('chat-interface').style.display = 'none';
             document.getElementById('call-controls-container').style.display = 'none';
             if (renderer && renderer.domElement) renderer.domElement.style.display = 'none';
@@ -786,6 +779,7 @@
                 document.getElementById('video-streams-container').style.display = 'block';
                 const friendVideo = document.getElementById('friend-video-view');
                 friendVideo.style.display = 'block';
+                
                 call.on('stream', (remoteStream) => {
                     friendVideo.srcObject = remoteStream;
                 });
@@ -812,6 +806,18 @@
             document.getElementById('screenshare-btn').classList.remove('sharing-active-frame');
             document.getElementById('modal-description').innerText = "Connected with friend.";
             document.getElementById('screenshare-status-indicator').style.display = 'none';
+            
+            // Wenn der normale Anruf noch aktiv ist, das Video zurücksetzen
+            if (currentPeerCall && activeCallType === 'video') {
+                const friendVideo = document.getElementById('friend-video-view');
+                if (friendVideo && currentPeerCall.peerConnection) {
+                    const remoteStream = new MediaStream();
+                    currentPeerCall.peerConnection.getReceivers().forEach(receiver => {
+                        if (receiver.track) remoteStream.addTrack(receiver.track);
+                    });
+                    friendVideo.srcObject = remoteStream;
+                }
+            }
         }
 
         function terminateActiveCall() {
@@ -842,8 +848,6 @@
 
             updateStatusLabelText("");
             manageLocalAudioSuspension(false);
-            
-            // Re-Aktivierung des Raums nach Auflegen
             isInCallMode = false;
             document.getElementById('call-overlay-modal').style.display = 'none';
             document.getElementById('modal-live-controls').style.display = 'none';
@@ -1095,7 +1099,6 @@
 
             let initialTouchDistance = null;
             let initialZ = null;
-
             window.addEventListener('touchstart', (e) => {
                 if (!isChatroomActive || e.touches.length !== 2) return;
                 initialTouchDistance = Math.hypot(
@@ -1104,7 +1107,6 @@
                 );
                 initialZ = camera.position.z;
             }, { passive: true });
-
             window.addEventListener('touchmove', (e) => {
                 if (!isChatroomActive || e.touches.length !== 2 || initialTouchDistance === null) return;
                 e.preventDefault();
@@ -1126,7 +1128,6 @@
                 camera.lookAt(0, 0.8, 0);
                 camera.updateProjectionMatrix();
             }, { passive: false });
-
             window.addEventListener('touchend', () => {
                 initialTouchDistance = null;
                 initialZ = null;
