@@ -1,4 +1,4 @@
-/* Grund-Setup: Vollbild und schwarzer Hintergrund für das Login */
+/* Core Layout: Fullscreen and black background for initial login */
 body {
     margin: 0;
     overflow: hidden;
@@ -8,14 +8,14 @@ body {
     -webkit-user-select: none;
 }
 
-/* Das Login-Kästchen - Höher platziert für Mobile- & iPad-Tastaturen */
+/* Login Box - Placed higher up to clear Mobile & iPad keyboards */
 #login-container {
     position: absolute;
     top: 25%;
     left: 50%;
     transform: translate(-50%, -25%);
     width: 320px;
-    max-width: 90%; /* Perfekt für schmale Handys */
+    max-width: 90%; /* Responsive fit for small smartphone screens */
     background: rgba(20, 20, 20, 0.9);
     border: 2px solid #00ff00;
     border-radius: 10px;
@@ -29,7 +29,7 @@ body {
     box-sizing: border-box;
 }
 
-/* "your id" Text oben links im Kästchen */
+/* "your id" text inside the box top-left */
 .id-label {
     align-self: flex-start;
     font-size: 12px;
@@ -39,7 +39,7 @@ body {
     letter-spacing: 1px;
 }
 
-/* Anzeige der eigenen 6-stelligen ID */
+/* Display element for own 6-digit peer ID */
 #my-id-display {
     font-size: 24px;
     font-weight: bold;
@@ -49,10 +49,10 @@ body {
     align-self: flex-start;
 }
 
-/* Das Input-Feld für die ID des Freundes */
+/* User input field for the peer connection */
 #friend-id-input {
     width: 100%;
-    padding: 14px; /* Optimal für Touch-Bedienung */
+    padding: 14px; /* Sized perfectly for comfortable touch interaction */
     background: #222;
     border: 1px solid #444;
     border-radius: 5px;
@@ -62,14 +62,14 @@ body {
     outline: none;
     box-sizing: border-box;
     transition: border-color 0.3s;
-    -webkit-appearance: none; /* Erzwingt sauberes iOS-Rendering */
+    -webkit-appearance: none; /* Enforces clean rendering on iOS Safari */
 }
 
 #friend-id-input:focus {
     border-color: #00ff00;
 }
 
-/* Der Connect-Button (Standard: Grau und unklickbar) */
+/* Connect button (Default state: grey and non-interactive) */
 #connect-btn {
     width: 100%;
     margin-top: 15px;
@@ -85,7 +85,7 @@ body {
     -webkit-appearance: none;
 }
 
-/* Aktiver Zustand des Connect-Buttons, wenn 6 Zahlen eingegeben wurden */
+/* Active connect state triggered when exactly 6 numbers are supplied */
 #connect-btn.active {
     background-color: #00ff00;
     color: #000000;
@@ -93,7 +93,7 @@ body {
     box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
 }
 
-/* Status-Meldungen im Kästchen */
+/* Status message outputs inside the module */
 #status-text {
     font-size: 12px;
     color: #aaa;
@@ -102,7 +102,7 @@ body {
 }
 
 /* =========================================================================
-   NEU: ROBLOX-STYLE CHAT INTERFACE (UNTEN LINKS)
+   ROBLOX-STYLE CHAT INTERFACE (BOTTOM LEFT OVERLAY)
    ========================================================================= */
 
 #chat-interface {
@@ -112,7 +112,7 @@ body {
     width: 360px;
     max-width: 85%;
     height: 240px;
-    background: rgba(0, 0, 0, 0.5); /* Typischer transparenter Roblox-Look */
+    background: rgba(0, 0, 0, 0.5); /* Semi-transparent clean Roblox vibe */
     border-radius: 4px;
     display: flex;
     flex-direction: column;
@@ -122,7 +122,7 @@ body {
     font-family: 'Arial', sans-serif;
 }
 
-/* Nachrichten-Verlauf */
+/* Message stream container */
 #chat-messages {
     flex: 1;
     overflow-y: auto;
@@ -133,22 +133,22 @@ body {
     padding-right: 4px;
 }
 
-/* Einzelne Chat-Zeile */
+/* Individual message items */
 .chat-message {
     font-size: 14px;
     color: #ffffff;
     word-break: break-word;
-    text-shadow: 1px 1px 2px #000000; /* Macht Text extrem lesbar */
+    text-shadow: 1px 1px 2px #000000; /* Drop-shadow rendering to optimize readability over 3D rendering */
     line-height: 1.3;
 }
 
-/* Der Absender-Name im Chatverlauf */
+/* Username designators within log stream */
 .chat-sender {
     font-weight: bold;
-    color: #ffaa00; /* Orange-Gold für den Namen im klassischen Roblox-Stil */
+    color: #ffaa00; /* Traditional Roblox orange-gold tint */
 }
 
-/* "friend is writing..." Statusanzeige */
+/* Live keyboard activity notification */
 #writing-status {
     font-size: 12px;
     color: #00ff00;
@@ -158,7 +158,7 @@ body {
     text-shadow: 1px 1px 1px #000;
 }
 
-/* Input-Zeile unten */
+/* Bottom input tray assembly */
 #chat-input-area {
     display: flex;
     gap: 6px;
@@ -196,7 +196,7 @@ body {
 }
 
 /* =========================================================================
-   NEU: OVERLAYS FÜR DEN 3D-RAUM (NAMENSSCHILDER & SPRECHBLASEN)
+   3D VIEWSPACE OVERLAYS (UI NAMEPLATES & DIALOG BUBBLES)
    ========================================================================= */
 
 #labels-container {
@@ -205,12 +205,12 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none; /* Klicks gehen durch die Labels durch ins 3D-Spiel */
+    pointer-events: none; /* Mouse clicks bypass layers directly into WebGL canvas scene execution */
     z-index: 5;
     overflow: hidden;
 }
 
-/* Permanentes Namensschild ("you" & "friend") direkt über dem Kopf */
+/* Persistent labels tracking above heads */
 .roblox-name-label {
     position: absolute;
     transform: translate(-50%, -50%);
@@ -222,10 +222,10 @@ body {
     text-align: center;
 }
 
-/* Schwebende Roblox-Sprechblase für Chat-Nachrichten */
+/* Transient pop-up speech bubble layout */
 .roblox-bubble {
     position: absolute;
-    transform: translate(-50%, -100%); /* Zieht das Element exakt nach oben auf den Fixpunkt */
+    transform: translate(-50%, -100%); /* Keeps anchoring calculations relative to lower center point */
     background: #ffffff;
     color: #000000;
     padding: 8px 14px;
@@ -238,7 +238,7 @@ body {
     box-shadow: 0px 3px 6px rgba(0,0,0,0.3);
 }
 
-/* Kleiner Pfeil nach unten für die Sprechblase */
+/* Downward indicator arrow graphic for bubbles */
 .roblox-bubble::after {
     content: '';
     position: absolute;
