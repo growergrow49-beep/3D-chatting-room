@@ -20,11 +20,54 @@
         <div id="status-text">Generating Peer ID...</div>
     </div>
 
+    <div id="call-controls-container" style="display: none;">
+        <button id="audio-call-btn" title="Voice Call">📞</button>
+        <button id="video-call-btn" title="Video Call">📹</button>
+        <button id="screenshare-btn" title="Share Screen" style="display: none;">🖥️</button>
+        <button id="mute-btn" title="Mute Microphone" style="display: none;">🎤</button>
+        <button id="deafen-btn" title="Deafen Audio" style="display: none;">🎧</button>
+        <button id="camera-toggle-btn" title="Toggle Camera" style="display: none;">📷</button>
+        <button id="hangup-btn" title="End Call" style="display: none;">🛑</button>
+    </div>
+
+    <div id="video-streams-container" style="display: none;">
+        <video id="friend-video-view" autoplay playsinline></video>
+        <video id="my-video-preview" autoplay playsinline muted></video>
+    </div>
+
+    <div id="call-overlay-modal" style="display: none;">
+        <div class="modal-box">
+            <h2 id="modal-title">Incoming Call...</h2>
+            <p id="modal-description">A friend is calling you.</p>
+            <div class="modal-actions">
+                <button id="modal-accept-btn">Accept</button>
+                <button id="modal-decline-btn">Decline</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="lightbox-overlay" style="display: none;">
+        <span id="lightbox-close-btn">&times;</span>
+        <div id="lightbox-content-holder"></div>
+    </div>
+
     <div id="chat-interface" style="display: none;">
         <div id="chat-messages"></div>
         <div id="writing-status"></div>
         <div id="chat-input-area">
+            <button id="attachments-trigger-btn">+</button>
+            <div id="ipad-context-menu" style="display: none;">
+                <button class="menu-item-action" data-action="file">Upload File</button>
+                <button class="menu-item-action" data-action="gallery">Upload from Gallery</button>
+                <button class="menu-item-action" data-action="camera">Take Photo/Video</button>
+            </div>
+            <input type="file" id="hidden-file-element" style="display: none;" accept="*/*">
+            <input type="file" id="hidden-gallery-element" style="display: none;" accept="image/*,video/*">
+            <input type="file" id="hidden-camera-element" style="display: none;" accept="image/*,video/*" capture="user">
+
             <input type="text" id="chat-input" placeholder="Click here to chat..." autocomplete="off">
+            
+            <button id="voice-record-btn" title="Record Voice Memo">🎙️</button>
             <button id="send-btn">Send</button>
         </div>
     </div>
@@ -40,6 +83,30 @@
         let avatarYou, avatarFriend;
         const activeBubbles = { you: null, friend: null };
 
+        // Web Audio Infrastructure
+        let audioCtx = null;
+        let bkgMusicNode = null;
+        let bkgGainNode = null;
+        const BASE_MUSIC_VOLUME = 0.36;
+        const DUCKED_MUSIC_VOLUME = 0.08;
+        let isAudioSuspendedLocally = false;
+
+        // Call Media State
+        let currentPeerCall = null;
+        let currentScreenShareCall = null;
+        let localMediaStream = null;
+        let screenShareStream = null;
+        let isMuted = false;
+        let isDeafened = false;
+        let isCameraOn = false;
+        let activeCallType = null; // 'audio' or 'video'
+
+        // Audio Recording Runtime Variables
+        let audioRecorder = null;
+        let recordedChunks = [];
+        let voiceTimerInterval = null;
+        let voiceRecordSeconds = 0;
+
         // --- 2. PEERJS LOGIC (6-DIGIT CORE GENERATION) ---
         function generate6DigitId() {
             return Math.floor(100000 + Math.random() * 900000).toString();
@@ -48,7 +115,9 @@
         const myId = generate6DigitId();
         document.getElementById('my-id-display').innerText = myId;
 
-        const peer = new Peer(myId);
+        const peer = new Peer(myId, {
+            config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }, { 'urls': 'stun:stun1.l.google.com:19302' }] }
+        });
 
         const friendInput = document.getElementById('friend-id-input');
         const connectBtn = document.getElementById('connect-btn');
@@ -95,6 +164,10 @@
                 } else if (data.type === 'writing') {
                     const writingStatus = document.getElementById('writing-status');
                     writingStatus.innerText = data.status ? "friend is writing..." : "";
+                } else if (data.type === 'media') {
+                    appendMediaMessage("Friend", data.mediaType, data.payload, data.name);
+                } else if (data.type === 'call-signaling') {
+                    handleIncomingCallSignal(data);
                 }
             });
         }
@@ -102,9 +175,13 @@
         function switchToChatroom() {
             document.getElementById('login-container').style.display = 'none';
             document.getElementById('chat-interface').style.display = 'flex';
+            document.getElementById('call-controls-container').style.display = 'flex';
             isChatroomActive = true;
             initChatroom();
             setupChatListeners();
+            setupCallControlListeners();
+            setupAttachmentTrayListeners();
+            initAudioEngine();
         }
 
         // --- 3. ROBLOX CHAT RUNTIME LOGIK ---
@@ -149,9 +226,12 @@
             const chatMessages = document.getElementById('chat-messages');
             const msgEl = document.createElement('div');
             msgEl.className = 'chat-message';
-            msgEl.innerHTML = `<span class="chat-sender">${sender}:</span> ${text}`;
+            msgEl.innerHTML = `<span class="chat-sender">${sender}:</span> <span class="msg-body"></span>`;
             chatMessages.appendChild(msgEl);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Direct local text print for stream view box
+            msgEl.querySelector('.msg-body').innerText = text;
         }
 
         function show3DBubble(target, text) {
@@ -162,16 +242,43 @@
 
             const bubble = document.createElement('div');
             bubble.className = 'roblox-bubble';
-            bubble.innerText = text;
             container.appendChild(bubble);
             activeBubbles[target] = bubble;
 
-            setTimeout(() => {
-                if (activeBubbles[target] === bubble) {
-                    bubble.remove();
-                    activeBubbles[target] = null;
+            let currentString = "";
+            let charIndex = 0;
+            
+            // Localized Dynamic Audio Ducking when voice printing starts
+            if (target === 'you') {
+                duckBackgroundMusic(true);
+            }
+
+            function printCharacter() {
+                if (!activeBubbles[target] || charIndex >= text.length) {
+                    if (target === 'you') {
+                        duckBackgroundMusic(false);
+                    }
+                    // Auto destroy bubble after exactly 15 seconds
+                    setTimeout(() => {
+                        if (activeBubbles[target] === bubble) {
+                            bubble.remove();
+                            activeBubbles[target] = null;
+                        }
+                    }, 15000);
+                    return;
                 }
-            }, 15000);
+                currentString += text[charIndex];
+                bubble.innerText = currentString;
+                
+                // Programmatic animalistic vocalization tick
+                playAnimalVoiceTick(text.charCodeAt(charIndex));
+                
+                charIndex++;
+                setTimeout(printCharacter, 60);
+            }
+
+            printCharacter();
+            updateOverlayPosition(target === 'you' ? avatarYou : avatarFriend, bubble, 1.2);
         }
 
         function createPermanentLabel(text) {
@@ -183,7 +290,567 @@
             return label;
         }
 
-        // --- 4. THREE.JS 3D ENGINE SCENE ---
+        // --- 4. ATTACHMENT TRAY & MEDIA HANDLING ---
+        function setupAttachmentTrayListeners() {
+            const trigger = document.getElementById('attachments-trigger-btn');
+            const menu = document.getElementById('ipad-context-menu');
+            
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+            });
+
+            document.addEventListener('click', () => {
+                menu.style.display = 'none';
+            });
+
+            document.querySelectorAll('.menu-item-action').forEach(item => {
+                item.addEventListener('click', function() {
+                    const action = this.getAttribute('data-action');
+                    if (action === 'file') document.getElementById('hidden-file-element').click();
+                    if (action === 'gallery') document.getElementById('hidden-gallery-element').click();
+                    if (action === 'camera') document.getElementById('hidden-camera-element').click();
+                });
+            });
+
+            const hiddenFile = document.getElementById('hidden-file-element');
+            const hiddenGallery = document.getElementById('hidden-gallery-element');
+            const hiddenCamera = document.getElementById('hidden-camera-element');
+
+            const uploadProcessor = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const payload = evt.target.result;
+                    let mediaType = 'file';
+                    if (file.type.startsWith('image/')) mediaType = 'image';
+                    else if (file.type.startsWith('video/')) mediaType = 'video';
+
+                    appendMediaMessage("You", mediaType, payload, file.name);
+                    if (dataConnection) {
+                        dataConnection.send({ type: 'media', mediaType: mediaType, payload: payload, name: file.name });
+                    }
+                };
+                reader.readAsDataURL(file);
+                e.target.value = ""; // Reset element
+            };
+
+            hiddenFile.addEventListener('change', uploadProcessor);
+            hiddenGallery.addEventListener('change', uploadProcessor);
+            hiddenCamera.addEventListener('change', uploadProcessor);
+
+            // Lightbox Interactivity Close Event
+            document.getElementById('lightbox-close-btn').addEventListener('click', () => {
+                const overlay = document.getElementById('lightbox-overlay');
+                const holder = document.getElementById('lightbox-content-holder');
+                overlay.style.display = 'none';
+                holder.innerHTML = "";
+                // Local suspension restoration checking
+                manageLocalAudioSuspension(false);
+            });
+
+            // Voice Recording Component Setup
+            const recordBtn = document.getElementById('voice-record-btn');
+            recordBtn.addEventListener('click', toggleVoiceRecording);
+        }
+
+        function appendMediaMessage(sender, mediaType, payload, filename) {
+            const chatMessages = document.getElementById('chat-messages');
+            const msgEl = document.createElement('div');
+            msgEl.className = 'chat-message';
+            
+            let htmlContent = `<span class="chat-sender">${sender}:</span> `;
+            if (mediaType === 'image') {
+                htmlContent += `<div class="media-preview-container"><img src="${payload}" class="lightbox-trigger-target adaptive-preview-thumbnail" alt="Image"></div>`;
+            } else if (mediaType === 'video') {
+                htmlContent += `<div class="media-preview-container"><video src="${payload}" class="lightbox-trigger-target adaptive-preview-thumbnail" muted playsinline></video><div class="video-play-overlay-icon">▶</div></div>`;
+            } else if (mediaType === 'audio') {
+                htmlContent += `<div class="media-preview-container"><audio src="${payload}" controls class="chat-voice-element-player"></audio></div>`;
+            } else {
+                htmlContent += `<a href="${payload}" download="${filename}" class="chat-generic-file-anchor">📁 Download ${filename}</a>`;
+            }
+            
+            msgEl.innerHTML = htmlContent;
+            chatMessages.appendChild(msgEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Apply interactive Lightbox event tracking to items
+            const trigger = msgEl.querySelector('.lightbox-trigger-target');
+            if (trigger) {
+                trigger.addEventListener('click', () => {
+                    openLightbox(mediaType, payload);
+                });
+            }
+
+            // Track audio element playback events to silence background synthesizers local instances
+            const aud = msgEl.querySelector('.chat-voice-element-player');
+            if (aud) {
+                aud.addEventListener('play', () => manageLocalAudioSuspension(true));
+                aud.addEventListener('pause', () => manageLocalAudioSuspension(false));
+                aud.addEventListener('ended', () => manageLocalAudioSuspension(false));
+            }
+        }
+
+        function openLightbox(type, payload) {
+            const overlay = document.getElementById('lightbox-overlay');
+            const holder = document.getElementById('lightbox-content-holder');
+            holder.innerHTML = "";
+            
+            manageLocalAudioSuspension(true);
+
+            if (type === 'image') {
+                const img = document.createElement('img');
+                img.src = payload;
+                img.className = 'lightbox-fullscreen-view';
+                holder.appendChild(img);
+            } else if (type === 'video') {
+                const vid = document.createElement('video');
+                vid.src = payload;
+                vid.className = 'lightbox-fullscreen-view';
+                vid.controls = true;
+                vid.autoplay = true;
+                holder.appendChild(vid);
+                vid.addEventListener('ended', () => manageLocalAudioSuspension(false));
+            }
+            overlay.style.display = 'flex';
+        }
+
+        async function toggleVoiceRecording() {
+            const btn = document.getElementById('voice-record-btn');
+            if (audioRecorder && audioRecorder.state === "recording") {
+                audioRecorder.stop();
+                btn.classList.remove('recording-active');
+                btn.innerText = "🎙️";
+                clearInterval(voiceTimerInterval);
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+                recordedChunks = [];
+                audioRecorder = new MediaRecorder(stream);
+                audioRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                audioRecorder.onstop = () => {
+                    stream.getTracks().forEach(t => t.stop());
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {
+                        appendMediaMessage("You", "audio", evt.target.result, "voice.webm");
+                        if (dataConnection) {
+                            dataConnection.send({ type: 'media', mediaType: 'audio', payload: evt.target.result, name: "voice.webm" });
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                };
+
+                voiceRecordSeconds = 0;
+                btn.classList.add('recording-active');
+                btn.innerText = "🛑 0s";
+                voiceTimerInterval = setInterval(() => {
+                    voiceRecordSeconds++;
+                    btn.innerText = `🛑 ${voiceRecordSeconds}s`;
+                }, 1000);
+
+                audioRecorder.start();
+            } catch (err) {
+                console.error("Failed to access mic for voice memo:", err);
+            }
+        }
+
+        // --- 5. VOICE & VIDEO CALL FLOW CONTROLS ---
+        function setupCallControlListeners() {
+            document.getElementById('audio-call-btn').addEventListener('click', () => initiateCallFlow('audio'));
+            document.getElementById('video-call-btn').addEventListener('click', () => initiateCallFlow('video'));
+            document.getElementById('screenshare-btn').addEventListener('click', toggleScreenShare);
+            document.getElementById('mute-btn').addEventListener('click', toggleMute);
+            document.getElementById('deafen-btn').addEventListener('click', toggleDeafen);
+            document.getElementById('camera-toggle-btn').addEventListener('click', toggleCameraState);
+            document.getElementById('hangup-btn').addEventListener('click', terminateActiveCall);
+
+            // Hook incoming media request channels handlers
+            peer.on('call', (call) => {
+                if (call.metadata && call.metadata.isScreenShare) {
+                    promptScreenShareAcceptance(call);
+                } else {
+                    promptIncomingCallAcceptance(call);
+                }
+            });
+        }
+
+        function handleIncomingCallSignal(data) {
+            if (data.action === 'upgrade-request') {
+                promptCallUpgradeRequest();
+            } else if (data.action === 'upgrade-approved') {
+                executeCameraUpgrade();
+            } else if (data.action === 'upgrade-declined') {
+                alert("Friend declined camera activation.");
+            }
+        }
+
+        async function initiateCallFlow(type) {
+            activeCallType = type;
+            updateStatusLabelText("Calling friend...");
+            
+            try {
+                const constraints = {
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                    video: type === 'video' ? { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } : false
+                };
+                localMediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                isCameraOn = type === 'video';
+
+                if (type === 'video') {
+                    document.getElementById('video-streams-container').style.display = 'block';
+                    document.getElementById('my-video-preview').srcObject = localMediaStream;
+                }
+
+                if (dataConnection) {
+                    dataConnection.send({ type: 'call-signaling', action: 'dial', callType: type });
+                }
+
+                const friendId = dataConnection.peer;
+                const call = peer.call(friendId, localMediaStream, { metadata: { callType: type } });
+                attachCallStreamListeners(call);
+            } catch (err) {
+                console.error("Could not acquire media devices for call:", err);
+                updateStatusLabelText("Call failed.");
+            }
+        }
+
+        function promptIncomingCallAcceptance(call) {
+            const type = call.metadata ? call.metadata.callType : 'audio';
+            activeCallType = type;
+            
+            const modal = document.getElementById('call-overlay-modal');
+            document.getElementById('modal-title').innerText = `Incoming ${type === 'video' ? 'Video' : 'Voice'} Call`;
+            document.getElementById('modal-description').innerText = "A friend is calling you.";
+            modal.style.display = 'flex';
+
+            const acceptBtn = document.getElementById('modal-accept-btn');
+            const declineBtn = document.getElementById('modal-decline-btn');
+
+            acceptBtn.onclick = async () => {
+                modal.style.display = 'none';
+                try {
+                    const constraints = {
+                        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                        video: type === 'video' ? { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } : false
+                    };
+                    localMediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    isCameraOn = type === 'video';
+
+                    if (type === 'video') {
+                        document.getElementById('video-streams-container').style.display = 'block';
+                        document.getElementById('my-video-preview').srcObject = localMediaStream;
+                    }
+
+                    call.answer(localMediaStream);
+                    attachCallStreamListeners(call);
+                } catch (err) {
+                    console.error("Error accepting call stream:", err);
+                }
+            };
+
+            declineBtn.onclick = () => {
+                modal.style.display = 'none';
+                call.close();
+            };
+        }
+
+        function attachCallStreamListeners(call) {
+            currentPeerCall = call;
+            updateStatusLabelText("In Call");
+            manageLocalAudioSuspension(true);
+            toggleCallControlButtonsVisibility(true);
+
+            call.on('stream', (remoteStream) => {
+                const friendVideo = document.getElementById('friend-video-view');
+                friendVideo.srcObject = remoteStream;
+                if (activeCallType === 'audio') {
+                    friendVideo.style.display = 'none';
+                } else {
+                    friendVideo.style.display = 'block';
+                    document.getElementById('video-streams-container').style.display = 'block';
+                }
+            });
+
+            call.on('close', () => {
+                cleanupCallEndState();
+            });
+        }
+
+        function toggleCallControlButtonsVisibility(inCall) {
+            document.getElementById('audio-call-btn').style.display = inCall ? 'none' : 'block';
+            document.getElementById('video-call-btn').style.display = inCall ? 'none' : 'block';
+            
+            document.getElementById('screenshare-btn').style.display = inCall ? 'block' : 'none';
+            document.getElementById('mute-btn').style.display = inCall ? 'block' : 'none';
+            document.getElementById('deafen-btn').style.display = inCall ? 'block' : 'none';
+            document.getElementById('camera-toggle-btn').style.display = inCall ? 'block' : 'none';
+            document.getElementById('hangup-btn').style.display = inCall ? 'block' : 'none';
+        }
+
+        function updateStatusLabelText(text) {
+            // Emits notifications across the chat layout status elements stream 
+            const writingStatus = document.getElementById('writing-status');
+            if (writingStatus) writingStatus.innerText = text === "In Call" ? "" : text;
+        }
+
+        function toggleMute() {
+            if (!localMediaStream) return;
+            isMuted = !isMuted;
+            localMediaStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+            document.getElementById('mute-btn').innerText = isMuted ? "🔇" : "🎤";
+            document.getElementById('mute-btn').classList.toggle('control-disabled-state', isMuted);
+        }
+
+        function toggleDeafen() {
+            isDeafened = !isDeafened;
+            const friendVideo = document.getElementById('friend-video-view');
+            if (friendVideo) friendVideo.muted = isDeafened;
+            document.getElementById('deafen-btn').innerText = isDeafened ? "🔊" : "🎧";
+            document.getElementById('deafen-btn').classList.toggle('control-disabled-state', isDeafened);
+        }
+
+        function toggleCameraState() {
+            if (activeCallType === 'audio' && !isCameraOn) {
+                // Initiates upgrading verification request handling loop channels
+                if (dataConnection) {
+                    dataConnection.send({ type: 'call-signaling', action: 'upgrade-request' });
+                }
+            } else {
+                // Direct toggling fallback configuration for standard initialized frames
+                isCameraOn = !isCameraOn;
+                localMediaStream.getVideoTracks().forEach(t => t.enabled = isCameraOn);
+                document.getElementById('my-video-preview').style.display = isCameraOn ? 'block' : 'none';
+                document.getElementById('camera-toggle-btn').classList.toggle('control-disabled-state', !isCameraOn);
+            }
+        }
+
+        function promptCallUpgradeRequest() {
+            const modal = document.getElementById('call-overlay-modal');
+            document.getElementById('modal-title').innerText = "Upgrade to Video Call";
+            document.getElementById('modal-description').innerText = "Friend wants to activate their camera. Confirm?";
+            modal.style.display = 'flex';
+
+            document.getElementById('modal-accept-btn').onclick = () => {
+                modal.style.display = 'none';
+                if (dataConnection) dataConnection.send({ type: 'call-signaling', action: 'upgrade-approved' });
+                executeCameraUpgrade();
+            };
+
+            document.getElementById('modal-decline-btn').onclick = () => {
+                modal.style.display = 'none';
+                if (dataConnection) dataConnection.send({ type: 'call-signaling', action: 'upgrade-declined' });
+            };
+        }
+
+        async function executeCameraUpgrade() {
+            activeCallType = 'video';
+            isCameraOn = true;
+            try {
+                // Dynamic expansion modification constraint deployment
+                const videoTrackStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } 
+                });
+                const videoTrack = videoTrackStream.getVideoTracks()[0];
+                
+                if (localMediaStream) {
+                    localMediaStream.addTrack(videoTrack);
+                    // Negotiate tracking swap directly using runtime sender replace methods if applicable
+                    if (currentPeerCall && currentPeerCall.peerConnection) {
+                        const senders = currentPeerCall.peerConnection.getSenders();
+                        const sender = senders.find(s => s.track && s.track.kind === 'video');
+                        if (sender) {
+                            sender.replaceTrack(videoTrack);
+                        } else {
+                            currentPeerCall.peerConnection.addTrack(videoTrack, localMediaStream);
+                        }
+                    }
+                }
+                
+                document.getElementById('video-streams-container').style.display = 'block';
+                document.getElementById('friend-video-view').style.display = 'block';
+                document.getElementById('my-video-preview').style.display = 'block';
+                document.getElementById('my-video-preview').srcObject = localMediaStream;
+                document.getElementById('camera-toggle-btn').classList.remove('control-disabled-state');
+            } catch (e) {
+                console.error("Camera upgrade execution acquisition crash:", e);
+            }
+        }
+
+        // --- 6. SCREEN SHARING PLATFORM CHANNELS ---
+        async function toggleScreenShare() {
+            if (screenShareStream) {
+                stopScreenShareInstance();
+                return;
+            }
+
+            try {
+                // Request Display Capture along with iPad/System audio mapping configurations
+                screenShareStream = await navigator.mediaDevices.getDisplayMedia({ 
+                    video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } },
+                    audio: true 
+                });
+
+                const friendId = dataConnection.peer;
+                const shareCall = peer.call(friendId, screenShareStream, { metadata: { isScreenShare: true } });
+                currentScreenShareCall = shareCall;
+
+                screenShareStream.getVideoTracks()[0].onended = () => {
+                    stopScreenShareInstance();
+                };
+                document.getElementById('screenshare-btn').classList.add('sharing-active-frame');
+            } catch (err) {
+                console.error("Error sourcing display capture media streams:", err);
+            }
+        }
+
+        function promptScreenShareAcceptance(call) {
+            const modal = document.getElementById('call-overlay-modal');
+            document.getElementById('modal-title').innerText = "Screen Share Stream";
+            document.getElementById('modal-description').innerText = "Friend wants to share their screen. Watch?";
+            modal.style.display = 'flex';
+
+            document.getElementById('modal-accept-btn').onclick = () => {
+                modal.style.display = 'none';
+                currentScreenShareCall = call;
+                call.answer(); // Return stream response zero verification mapping channel
+                
+                document.getElementById('video-streams-container').style.display = 'block';
+                const friendVideo = document.getElementById('friend-video-view');
+                friendVideo.style.display = 'block';
+
+                call.on('stream', (remoteStream) => {
+                    friendVideo.srcObject = remoteStream;
+                });
+            };
+
+            document.getElementById('modal-decline-btn').onclick = () => {
+                modal.style.display = 'none';
+                call.close();
+            };
+        }
+
+        function stopScreenShareInstance() {
+            if (screenShareStream) {
+                screenShareStream.getTracks().forEach(t => t.stop());
+                screenShareStream = null;
+            }
+            if (currentScreenShareCall) {
+                currentScreenShareCall.close();
+                currentScreenShareCall = null;
+            }
+            document.getElementById('screenshare-btn').classList.remove('sharing-active-frame');
+        }
+
+        function terminateActiveCall() {
+            if (currentPeerCall) currentPeerCall.close();
+            cleanupCallEndState();
+        }
+
+        function cleanupCallEndState() {
+            stopScreenShareInstance();
+            if (localMediaStream) {
+                localMediaStream.getTracks().forEach(t => t.stop());
+                localMediaStream = null;
+            }
+            
+            document.getElementById('video-streams-container').style.display = 'none';
+            const friendVideo = document.getElementById('friend-video-view');
+            friendVideo.srcObject = null;
+            document.getElementById('my-video-preview').srcObject = null;
+
+            isMuted = false;
+            isDeafened = false;
+            isCameraOn = false;
+            document.getElementById('mute-btn').innerText = "🎤";
+            document.getElementById('deafen-btn').innerText = "🎧";
+            document.getElementById('mute-btn').classList.remove('control-disabled-state');
+            document.getElementById('deafen-btn').classList.remove('control-disabled-state');
+            document.getElementById('camera-toggle-btn').classList.remove('control-disabled-state');
+
+            toggleCallControlButtonsVisibility(false);
+            updateStatusLabelText("");
+            manageLocalAudioSuspension(false);
+        }
+
+        // --- 7. CORE PER-SCRIPT PROGRAMMATIC AUDIO ENGINE ---
+        function initAudioEngine() {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContextClass();
+                
+                // Construct a custom continuous lo-fi chill synth step sequence generator
+                const bufferSize = audioCtx.sampleRate * 4; // 4 Second looping matrix track patterns
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                // Fill synthesis step arrays data channels programmatically
+                for (let i = 0; i < bufferSize; i++) {
+                    const t = i / audioCtx.sampleRate;
+                    // Generate baseline fundamental note waves layered with harmonic frequencies
+                    const chord1 = Math.sin(2 * Math.PI * 146.83 * t); // D3 frequency
+                    const chord2 = Math.sin(2 * Math.PI * 220.00 * t); // A3 frequency
+                    const chord3 = Math.sin(2 * Math.PI * 293.66 * t); // D4 frequency
+                    const rhythmicEnvelope = Math.sin(2 * Math.PI * 0.25 * t) * 0.5 + 0.5;
+                    
+                    data[i] = ((chord1 + chord2 * 0.5 + chord3 * 0.2) * 0.3) * rhythmicEnvelope;
+                }
+
+                bkgMusicNode = audioCtx.createBufferSource();
+                bkgMusicNode.buffer = buffer;
+                bkgMusicNode.loop = true;
+
+                bkgGainNode = audioCtx.createGain();
+                bkgGainNode.gain.setValueAtTime(BASE_MUSIC_VOLUME, audioCtx.currentTime);
+
+                bkgMusicNode.connect(bkgGainNode);
+                bkgGainNode.connect(audioCtx.destination);
+                
+                bkgMusicNode.start(0);
+            } catch (err) {
+                console.warn("Web Audio API Synthesizer Context construction block:", err);
+            }
+        }
+
+        function duckBackgroundMusic(shouldDuck) {
+            if (!bkgGainNode || isAudioSuspendedLocally) return;
+            const targetVolume = shouldDuck ? DUCKED_MUSIC_VOLUME : BASE_MUSIC_VOLUME;
+            bkgGainNode.gain.linearRampToValueAtTime(targetVolume, audioCtx.currentTime + 0.2);
+        }
+
+        function manageLocalAudioSuspension(shouldSuspend) {
+            if (!bkgGainNode) return;
+            isAudioSuspendedLocally = shouldSuspend;
+            const targetVolume = shouldSuspend ? 0.0 : BASE_MUSIC_VOLUME;
+            bkgGainNode.gain.setValueAtTime(targetVolume, audioCtx.currentTime);
+        }
+
+        function playAnimalVoiceTick(charValue) {
+            if (!audioCtx) return;
+            // Generate a synthetic vocalized sound chip register click based on character values
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            // Map variable structural sound tone pitches dynamically
+            const pitchOffset = (charValue % 8) * 60;
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(320 + pitchOffset, audioCtx.currentTime);
+            
+            // Short decaying envelope formulation
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.06);
+        }
+
+        // --- 8. THREE.JS 3D ENGINE SCENE ---
         function initLoginScene() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x000000);
@@ -209,19 +876,15 @@
 
         function createEye(isLookingLeft) {
             const eyeGroup = new THREE.Group();
-            
-            // Eyeball (White)
             const eyeballGeo = new THREE.SphereGeometry(0.12, 16, 16);
             const eyeballMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
             const eyeball = new THREE.Mesh(eyeballGeo, eyeballMat);
             eyeGroup.add(eyeball);
             
-            // Pupil (Black)
             const pupilGeo = new THREE.SphereGeometry(0.05, 16, 16);
             const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
             const pupil = new THREE.Mesh(pupilGeo, pupilMat);
             
-            // Offset pupil outward and directly towards the other side of the room
             pupil.position.set(isLookingLeft ? -0.05 : 0.05, 0, 0.08);
             eyeGroup.add(pupil);
             
@@ -246,26 +909,22 @@
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
 
-            // 1. Floor
             const floorMat = new THREE.MeshStandardMaterial({color: 0x5c4033, roughness: 0.7});
             const floor = new THREE.Mesh(new THREE.BoxGeometry(14, 0.2, 10), floorMat);
             floor.position.y = -0.1;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // 2. Red Carpet
             const carpetMat = new THREE.MeshStandardMaterial({color: 0x990000, roughness: 0.9});
             const carpet = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.02, 3.5), carpetMat);
             carpet.position.set(0, 0.01, 0);
             scene.add(carpet);
 
-            // 3. Back Wall
             const wallMat = new THREE.MeshStandardMaterial({color: 0xe67e22, roughness: 0.6});
             const backWall = new THREE.Mesh(new THREE.BoxGeometry(14, 6, 0.2), wallMat);
             backWall.position.set(0, 3, -5);
             scene.add(backWall);
 
-            // 4. Crossed Window System
             const skyMat = new THREE.MeshBasicMaterial({color: 0x1a75ff}); 
             const sky = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 2.2), skyMat);
             sky.position.set(0, 3.5, -4.95);
@@ -280,14 +939,12 @@
             const borderTop = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.1, 0.15), frameMat); borderTop.position.set(0, 1.1, 0);
             const borderBottom = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.1, 0.15), frameMat); borderBottom.position.set(0, -1.1, 0);
             
-            // Grid bars crossing inside
             const vertBar = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.1), frameMat);
             const horizBar = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.08, 0.1), frameMat);
             
             windowGroup.add(borderLeft, borderRight, borderTop, borderBottom, vertBar, horizBar);
             scene.add(windowGroup);
 
-            // 5. Lamp
             const lampGroup = new THREE.Group();
             lampGroup.position.set(0, 6, 0);
             const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.8), new THREE.MeshBasicMaterial({color: 0x111111}));
@@ -297,7 +954,6 @@
             lampGroup.add(wire, bulb);
             scene.add(lampGroup);
 
-            // 6. Lighting
             const spotLight = new THREE.SpotLight(0xfff2cc, 3.5, 12, Math.PI / 4, 0.5, 1);
             spotLight.position.set(0, 4.2, 0);
             spotLight.target.position.set(0, 0, 0);
@@ -305,23 +961,19 @@
             scene.add(spotLight);
             scene.add(spotLight.target);
 
-            // 7. Table
             const table = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.6, 1.8), new THREE.MeshStandardMaterial({color: 0x4a2c11, roughness: 0.5}));
             table.position.set(0, 0.3, 0);
             table.castShadow = true;
             scene.add(table);
 
             // --- AVATARS PLACED DIRECTLY NEXT TO THE TABLE ---
-
-            // A. You (Red Sphere - Directly on the Right side of the Table, Facing Left)
             avatarYou = new THREE.Group();
-            avatarYou.position.set(2.1, 0.75, 0); // Directly off the table top edge
+            avatarYou.position.set(2.1, 0.75, 0); 
             
             const bodyYou = new THREE.Mesh(new THREE.SphereGeometry(0.45, 32, 32), new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.4 }));
             bodyYou.castShadow = true;
             avatarYou.add(bodyYou);
             
-            // Eyes on left side of the sphere to face the table surface directly
             const leftEyeYou = createEye(true); leftEyeYou.position.set(-0.35, 0.15, 0.15);
             const rightEyeYou = createEye(true); rightEyeYou.position.set(-0.35, 0.15, -0.15);
             avatarYou.add(leftEyeYou, rightEyeYou);
@@ -329,15 +981,13 @@
             
             avatarYou.userData.labelEl = createPermanentLabel("you");
 
-            // B. Friend (Blue Sphere - Directly on the Left side of the Table, Facing Right)
             avatarFriend = new THREE.Group();
-            avatarFriend.position.set(-2.1, 0.75, 0); // Directly off the table top edge
+            avatarFriend.position.set(-2.1, 0.75, 0); 
             
             const bodyFriend = new THREE.Mesh(new THREE.SphereGeometry(0.45, 32, 32), new THREE.MeshStandardMaterial({ color: 0x0055ff, roughness: 0.4 }));
             bodyFriend.castShadow = true;
             avatarFriend.add(bodyFriend);
             
-            // Eyes on right side of the sphere to look across the table
             const leftEyeFriend = createEye(false); leftEyeFriend.position.set(0.35, 0.15, -0.15);
             const rightEyeFriend = createEye(false); rightEyeFriend.position.set(0.35, 0.15, 0.15);
             avatarFriend.add(leftEyeFriend, rightEyeFriend);
