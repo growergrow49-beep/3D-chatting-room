@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Peer Chatroom</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    
+    <style>
+        /* Grund-Setup: Vollbild und schwarzer Hintergrund für das Login */
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000;
+            font-family: Arial, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Das Login-Kästchen - Jetzt weiter oben für Mobile & iPad Tastaturen */
+        #login-container {
+            position: absolute;
+            top: 25%; /* Höher platziert */
+            left: 50%;
+            transform: translate(-50%, -25%);
+            width: 320px;
+            max-width: 90%; /* Perfekt für schmale Handys */
+            background: rgba(20, 20, 20, 0.9);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 250, 0, 0.2);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #ffffff;
+            box-sizing: border-box;
+        }
+
+        /* "your id" Text oben links im Kästchen */
+        .id-label {
+            align-self: flex-start;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Anzeige der eigenen 6-stelligen ID */
+        #my-id-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ff00;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            align-self: flex-start;
+        }
+
+        /* Das Input-Feld für die ID des Freundes */
+        #friend-id-input {
+            width: 100%;
+            padding: 14px; /* Etwas größer für leichtere Touch-Bedienung */
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 16px;
+            text-align: center;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+            -webkit-appearance: none; /* Verhindert iOS-Standard-Styling */
+        }
+
+        #friend-id-input:focus {
+            border-color: #00ff00;
+        }
+
+        /* Der Connect-Button (Standard: Grau und unklickbar) */
+        #connect-btn {
+            width: 100%;
+            margin-top: 15px;
+            padding: 14px;
+            background-color: #555555;
+            color: #888888;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: not-allowed;
+            transition: all 0.3s ease;
+            -webkit-appearance: none;
+        }
+
+        /* Aktiver Zustand des Connect-Buttons, wenn 6 Zahlen eingegeben wurden */
+        #connect-btn.active {
+            background-color: #00ff00;
+            color: #000000;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        /* Status-Meldungen im Kästchen */
+        #status-text {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-container">
+        <div class="id-label">your id</div>
+        <div id="my-id-display">Lade...</div>
+        
+        <input type="text" id="friend-id-input" placeholder="Friend's 6-Digit ID" maxlength="6" autocomplete="off" inputmode="numeric">
+        <button id="connect-btn" disabled>Connect</button>
+        <div id="status-text">Generiere Peer-ID...</div>
+    </div>
+
+    <script>
+        // --- 1. PEERJS LOGIK (6-STELLIGE ID GENERIEREN & VERBINDEN) ---
+        
+        function generate6DigitId() {
+            return Math.floor(100000 + Math.random() * 900000).toString();
+        }
+
+        const myId = generate6DigitId();
+        document.getElementById('my-id-display').innerText = myId;
+
+        const peer = new Peer(myId);
+
+        const friendInput = document.getElementById('friend-id-input');
+        const connectBtn = document.getElementById('connect-btn');
+        const statusText = document.getElementById('status-text');
+
+        peer.on('open', (id) => {
+            statusText.innerText = "Bereit für Verbindung.";
+        });
+
+        friendInput.addEventListener('input', () => {
+            friendInput.value = friendInput.value.replace(/[^0-9]/g, '');
+            
+            if (friendInput.value.length === 6) {
+                connectBtn.classList.add('active');
+                connectBtn.disabled = false;
+            } else {
+                connectBtn.classList.remove('active');
+                connectBtn.disabled = true;
+            }
+        });
+
+        connectBtn.addEventListener('click', () => {
+            const friendId = friendInput.value;
+            statusText.innerText = "Verbinde mit " + friendId + "...";
+            
+            const conn = peer.connect(friendId);
+            
+            conn.on('open', () => {
+                statusText.innerText = "Verbunden!";
+                switchToChatroom();
+            });
+        });
+
+        peer.on('connection', (conn) => {
+            statusText.innerText = "Eingehende Verbindung...";
+            conn.on('open', () => {
+                switchToChatroom();
+            });
+        });
+
+        function switchToChatroom() {
+            document.getElementById('login-container').style.display = 'none';
+            isChatroomActive = true;
+            initChatroom();
+        }
+
+
+        // --- 2. THREE.JS 3D SZENEN LOGIK ---
+
+        let scene, camera, renderer, wireframeCube;
+        let isChatroomActive = false;
+
+        function initLoginScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            // Kamera leicht nach unten verschoben, damit der Würfel tiefer sitzt als das Kästchen
+            camera.position.set(0, -0.8, 5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Schont den iPad-Akku
+            document.body.appendChild(renderer.domElement);
+
+            const geometry = new THREE.BoxGeometry(1.4, 1.4, 1.4);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,
+                wireframe: true
+            });
+            wireframeCube = new THREE.Mesh(geometry, material);
+            scene.add(wireframeCube);
+
+            animate();
+        }
+
+        function initChatroom() {
+            while(scene.children.length > 0){ 
+                scene.remove(scene.children[0]); 
+            }
+
+            scene.background = new THREE.Color(0x333333);
+
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.position.set(0, 4.5, 6); 
+            camera.lookAt(0, 0, 0);
+            camera.updateProjectionMatrix();
+
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            // 1. Boden
+            const floorMat = new THREE.MeshStandardMaterial({color: 0x5c4033, roughness: 0.7});
+            const floor = new THREE.Mesh(new THREE.BoxGeometry(12, 0.2, 10), floorMat);
+            floor.position.y = -0.1;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // 2. Roter Teppich
+            const carpetMat = new THREE.MeshStandardMaterial({color: 0x990000, roughness: 0.9});
+            const carpet = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.02, 3.5), carpetMat);
+            carpet.position.set(0, 0.01, 0);
+            scene.add(carpet);
+
+            // 3. Wand hinten
+            const wallMat = new THREE.MeshStandardMaterial({color: 0xe67e22, roughness: 0.6});
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(12, 6, 0.2), wallMat);
+            backWall.position.set(0, 3, -5);
+            scene.add(backWall);
+
+            // 4. Fenster
+            const skyMat = new THREE.MeshBasicMaterial({color: 0x5dade2});
+            const sky = new THREE.Mesh(new THREE.PlaneGeometry(3, 2), skyMat);
+            sky.position.set(0, 3.5, -4.95);
+            scene.add(sky);
+
+            const windowGroup = new THREE.Group();
+            windowGroup.position.set(0, 3.5, -4.9);
+            const glassMat = new THREE.MeshStandardMaterial({color: 0xffffff, transparent: true, opacity: 0.3, roughness: 0.1});
+            const glass = new THREE.Mesh(new THREE.PlaneGeometry(3, 2), glassMat);
+            windowGroup.add(glass);
+
+            const frameMat = new THREE.MeshStandardMaterial({color: 0xffffff});
+            const frameGeo = new THREE.BoxGeometry(0.1, 2.1, 0.15);
+            const borderLeft = new THREE.Mesh(frameGeo, frameMat); borderLeft.position.set(-1.5, 0, 0);
+            const borderRight = new THREE.Mesh(frameGeo, frameMat); borderRight.position.set(1.5, 0, 0);
+            windowGroup.add(borderLeft, borderRight);
+            scene.add(windowGroup);
+
+            // 5. Deckenlampe
+            const lampGroup = new THREE.Group();
+            lampGroup.position.set(0, 6, 0);
+            const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.8), new THREE.MeshBasicMaterial({color: 0x111111}));
+            wire.position.y = -0.9;
+            const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), new THREE.MeshBasicMaterial({color: 0xfff2cc}));
+            bulb.position.y = -1.8;
+            lampGroup.add(wire, bulb);
+            scene.add(lampGroup);
+
+            // 6. Lichtquellen
+            const spotLight = new THREE.SpotLight(0xfff2cc, 3.5, 10, Math.PI / 4, 0.5, 1);
+            spotLight.position.set(0, 4.2, 0);
+            spotLight.target.position.set(0, 0, 0);
+            spotLight.castShadow = true;
+            scene.add(spotLight);
+            scene.add(spotLight.target);
+
+            // 7. Tisch
+            const table = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.6, 1.8), new THREE.MeshStandardMaterial({color: 0x4a2c11, roughness: 0.5}));
+            table.position.set(0, 0.3, 0);
+            table.castShadow = true;
+            scene.add(table);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!isChatroomActive) {
+                wireframeCube.rotation.x += 0.01;
+                wireframeCube.rotation.y -= 0.01;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        initLoginScene();
+    </script>
+</body>
+</html>
