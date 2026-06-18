@@ -17,8 +17,7 @@ body {
     width: 320px;
     max-width: 90%; /* Responsive fit for small smartphone screens */
     background: rgba(20, 20, 20, 0.9);
-    border: 2px solid #00ff00;
-    border-radius: 10px;
+    border: 2px solid #00ff00;\n    border-radius: 10px;
     padding: 20px;
     box-shadow: 0 0 20px rgba(0, 250, 0, 0.2);
     z-index: 10;
@@ -39,294 +38,337 @@ body {
     letter-spacing: 1px;
 }
 
-/* Big 6-Digit ID Display */
+/* Huge 6-digit ID display */
 #my-id-display {
-    font-size: 38px;
+    font-size: 42px;
     font-weight: bold;
     color: #00ff00;
     letter-spacing: 4px;
     margin-bottom: 25px;
-    text-shadow: 0 0 8px rgba(0, 255, 0, 0.4);
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
 }
 
-/* Input for Friend's ID */
+/* Input Field */
 #friend-id-input {
     width: 100%;
-    background: #000000;
-    border: 1px solid #444;
+    background: #111;
+    border: 1px solid #333;
     border-radius: 5px;
     padding: 12px;
-    color: #ffffff;
+    color: #fff;
     font-size: 18px;
     text-align: center;
-    letter-spacing: 2px;
-    margin-bottom: 15px;
+    letter-spacing: 3px;
     outline: none;
-    box-sizing: border-box;
     transition: border-color 0.2s;
+    box-sizing: border-box;
 }
 #friend-id-input:focus {
     border-color: #00ff00;
 }
 
-/* Connect Action Button */
+/* Connection Button */
 #connect-btn {
     width: 100%;
+    margin-top: 15px;
     background: #222;
     border: 1px solid #444;
-    border-radius: 5px;
+    color: #555;
     padding: 12px;
-    color: #666;
     font-size: 16px;
     font-weight: bold;
+    border-radius: 5px;
     cursor: not-allowed;
-    transition: all 0.2s ease;
-    box-sizing: border-box;
+    transition: all 0.2s;
 }
 #connect-btn.active {
     background: #00ff00;
     border-color: #00ff00;
     color: #000000;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 255, 0, 0.3);
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
 }
 #connect-btn.active:hover {
     background: #00dd00;
 }
 
-/* Small Subtitle Status Text inside Login Box */
+/* Small Status Label text */
 #status-text {
-    font-size: 13px;
-    color: #888;
     margin-top: 15px;
+    font-size: 12px;
+    color: #666;
     text-align: center;
 }
 
-/* --- CHATROOM RUNTIME GRAPHICS INTERFACE --- */
-
-/* Floating Transparent Audio Call Control Bar in Worldspace */
+/* Call Control Trigger Action Buttons Panel */
 #call-controls-container {
     position: absolute;
     top: 20px;
     left: 20px;
-    z-index: 100;
     display: flex;
     gap: 10px;
+    z-index: 50;
 }
 #call-controls-container button {
-    background: rgba(25, 25, 25, 0.85);
+    background: rgba(30, 30, 30, 0.75);
     border: 1px solid rgba(255, 255, 255, 0.15);
-    color: white;
-    padding: 12px;
-    border-radius: 50%;
+    color: #fff;
     font-size: 20px;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
     cursor: pointer;
-    width: 48px;
-    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-    transition: background 0.15s, transform 0.1s;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: background 0.2s, transform 0.1s;
 }
 #call-controls-container button:hover {
     background: rgba(50, 50, 50, 0.9);
     transform: scale(1.05);
 }
 
-/* Universal Disabled Toggle Design State Mapping Overrides */
-#call-controls-container button.control-disabled-state,
-#modal-live-controls button.control-disabled-state {
-    background: rgba(231, 76, 60, 0.8) !important;
-    border-color: #e74c3c;
-}
-#call-controls-container button.sharing-active-frame,
-#modal-live-controls button.sharing-active-frame {
-    background: rgba(46, 204, 113, 0.8) !important;
-    border-color: #2ecc71;
-    animation: pulseShareGlow 1.5s infinite;
-}
-@keyframes pulseShareGlow {
-    0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.4); }
-    70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
-}
-
-/* WebRTC Overlay Multi-Stream Video Viewport Layer Box */
+/* --- Bild-in-Bild Video Feed Layout Fix --- */
 #video-streams-container {
     position: absolute;
-    top: 80px;
-    left: 20px;
-    z-index: 90;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    pointer-events: auto;
-}
-#friend-video-view {
-    width: 320px;
-    height: 240px;
-    background: #111;
-    border-radius: 8px;
-    object-fit: cover;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-}
-#my-video-preview {
-    width: 140px;
-    height: 105px;
-    background: #222;
-    border-radius: 6px;
-    object-fit: cover;
-    border: 2px solid #00ff00;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 5;
+    pointer-events: none; /* Klicks gehen durch auf die 3D-Szene */
 }
 
-/* NEUER ANRUF-VOLLBILDSCHIRM (CALL SCREEN) */
+/* Das Video des Freundes füllt den gesamten Bildschirm aus */
+#friend-video-view {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: transparent;
+}
+
+/* Mein eigenes Bild wird klein als Bild-in-Bild unten rechts angezeigt */
+#my-video-preview {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 160px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    background-color: #111;
+    transform: scaleX(-1); /* Spiegelt mein eigenes Bild für natürliche Bewegung */
+    z-index: 6;
+    pointer-events: auto; /* Erlaubt Klicks direkt auf das kleine Video falls nötig */
+}
+
+/* --- Call Overlay Modal Sheets --- */
 #call-overlay-modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(10, 10, 10, 0.95);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    z-index: 2000; /* Legt sich über absolut alles */
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-sizing: border-box;
+    z-index: 100;
 }
-
-/* Strukturierter Box-Inhalt auf dem Vollbildschirm */
-#call-overlay-modal .modal-box {
-    background: rgba(25, 25, 25, 0.85);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    padding: 40px;
-    border-radius: 20px;
+.modal-box {
+    background: rgba(25, 25, 25, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    width: 360px;
+    max-width: 85%;
+    padding: 30px;
     text-align: center;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-    max-width: 90%;
-    width: 440px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     color: #ffffff;
 }
-
-#modal-title {
-    font-size: 28px;
-    margin-top: 0;
-    margin-bottom: 10px;
-    letter-spacing: 1px;
-    color: #00ff00;
-    text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+.modal-box h2 {
+    margin: 0 0 10px 0;
+    font-size: 22px;
+    font-weight: 600;
 }
-
-#modal-description {
-    font-size: 16px;
-    color: #cccccc;
-    margin-bottom: 30px;
+.modal-box p {
+    margin: 0 0 25px 0;
+    color: #aaa;
+    font-size: 14px;
 }
-
-/* Actions Wrapper für Accept / Decline Buttons */
 .modal-actions {
     display: flex;
+    gap: 15px;
     justify-content: center;
-    gap: 20px;
 }
 .modal-actions button {
-    padding: 14px 28px;
-    font-size: 16px;
-    font-weight: bold;
-    border: none;
+    flex: 1;
+    padding: 12px;
     border-radius: 8px;
+    font-size: 15px;
+    font-weight: bold;
     cursor: pointer;
-    transition: transform 0.1s, background 0.2s;
+    border: none;
+    transition: background 0.15s;
 }
 #modal-accept-btn {
     background: #2ecc71;
-    color: #ffffff;
+    color: #fff;
 }
-#modal-accept-btn:hover { background: #27ae60; transform: scale(1.02); }
+#modal-accept-btn:hover { background: #27ae60; }
 #modal-decline-btn {
     background: #e74c3c;
-    color: #ffffff;
+    color: #fff;
 }
-#modal-decline-btn:hover { background: #c0392b; transform: scale(1.02); }
+#modal-decline-btn:hover { background: #c0392b; }
 
-/* Verknüpfung der Live-Steuerungsknöpfe direkt auf dem Vollbildschirm */
+/* In-Call Controls Layout Menu bar */
 #modal-live-controls {
     display: flex;
+    gap: 12px;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 15px;
-    margin-top: 25px;
 }
 #modal-live-controls button {
-    background: rgba(45, 45, 45, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: white;
-    padding: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font-size: 18px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    font-size: 22px;
     cursor: pointer;
-    width: 54px;
-    height: 54px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     transition: background 0.15s, transform 0.1s;
 }
 #modal-live-controls button:hover {
-    background: rgba(70, 70, 70, 0.9);
+    background: rgba(255, 255, 255, 0.2);
     transform: scale(1.05);
 }
-
-/* Roter Auflegen-Button (Hang up) im Live-Control Panel */
-#hangup-btn.hangup-danger-btn {
+#modal-live-controls .hangup-danger-btn {
     background: #e74c3c !important;
-    border-color: #e74c3c !important;
 }
-#hangup-btn.hangup-danger-btn:hover {
+#modal-live-controls .hangup-danger-btn:hover {
     background: #c0392b !important;
 }
 
-/* --- MAIN TEXT CHAT SYSTEM CANVAS INTERFACE --- */
+/* State management modifiers for buttons */
+.control-disabled-state {
+    background: rgba(231, 76, 60, 0.25) !important;
+    border-color: rgba(231, 76, 60, 0.4) !important;
+    color: #e74c3c !important;
+}
+.sharing-active-frame {
+    background: rgba(46, 204, 113, 0.3) !important;
+    border-color: #2ecc71 !important;
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+}
+
+/* --- Roblox Text Bubbles Engine Style UI --- */
+#labels-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 20;
+}
+
+.roblox-name-label {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    background: rgba(0, 0, 0, 0.55);
+    color: #ffffff;
+    padding: 2px 8px;
+    font-size: 13px;
+    font-weight: bold;
+    border-radius: 3px;
+    white-space: nowrap;
+    font-family: Arial, sans-serif;
+}
+
+.roblox-bubble {
+    position: absolute;
+    transform: translate(-50%, -130%);
+    background: #ffffff;
+    color: #000000;
+    padding: 10px 14px;
+    border-radius: 12px;
+    max-width: 220px;
+    word-wrap: break-word;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.35;
+    filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.3));
+    font-family: Arial, sans-serif;
+    animation: bubbleSpawnPop 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.roblox-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 8px 8px 0;
+    border-style: solid;
+    border-color: #ffffff transparent;
+    display: block;
+    width: 0;
+}
+
+@keyframes bubbleSpawnPop {
+    0% { transform: translate(-50%, -100%) scale(0.7); opacity: 0; }
+    100% { transform: translate(-50%, -130%) scale(1.0); opacity: 1; }
+}
+
+/* --- Chat Interface canvas overlay --- */
 #chat-interface {
     position: absolute;
     bottom: 30px;
-    left: 30px;
-    width: 380px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 450px;
+    max-width: 90%;
     height: 260px;
-    background: rgba(20, 20, 20, 0.65);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    z-index: 100;
+    background: rgba(15, 15, 15, 0.78);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    z-index: 30;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
 }
 
 #chat-messages {
     flex: 1;
+    padding: 15px;
     overflow-y: auto;
-    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.2) transparent;
+    gap: 8px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
-#chat-messages::-webkit-scrollbar { width: 4px; }
-#chat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
 
-/* General Standard Paragraph Chat Element Message Segments */
 .chat-message {
     font-size: 14px;
     line-height: 1.4;
-    color: #eee;
+    color: #e0e0e0;
     word-break: break-word;
 }
 .chat-sender {
@@ -335,257 +377,176 @@ body {
     margin-right: 4px;
 }
 
-/* Real-Time Contextual Typing Signifier Overlay Monitor */
 #writing-status {
-    font-size: 12px;
+    padding: 0 15px 4px 15px;
+    font-size: 11px;
     color: #888;
     font-style: italic;
-    padding: 0 12px 4px 12px;
-    height: 14px;
+    min-height: 14px;
 }
 
-/* Input Management Strip Element */
+/* Input core tray area wrapper */
 #chat-input-area {
     display: flex;
-    border-top: 1px solid rgba(255,255,255,0.08);
-    padding: 8px;
-    gap: 8px;
     align-items: center;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.4);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    gap: 8px;
     position: relative;
 }
 
-/* Plus Attachment Core Launcher Button */
 #attachments-trigger-btn {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     border: none;
-    color: white;
-    width: 34px;
-    height: 34px;
-    border-radius: 6px;
-    font-size: 18px;
+    color: #fff;
+    font-size: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background 0.15s;
-    flex-shrink: 0;
 }
-#attachments-trigger-btn:hover { background: rgba(255,255,255,0.2); }
+#attachments-trigger-btn:hover { background: rgba(255, 255, 255, 0.2); }
 
-/* Contextual Sub-Tray Drop-Up Tray Box Menu Structure */
+#chat-input {
+    flex: 1;
+    background: rgba(20, 20, 20, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 10px 14px;
+    color: #fff;
+    font-size: 14px;
+    border-radius: 8px;
+    outline: none;
+}
+#chat-input:focus {
+    border-color: rgba(0, 255, 0, 0.5);
+}
+
+#voice-record-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    font-size: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+#voice-record-btn.recording-active {
+    background: #e74c3c !important;
+    color: #fff !important;
+    width: auto !important;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+#send-btn {
+    background: #00ff00;
+    color: #000;
+    border: none;
+    padding: 0 16px;
+    height: 36px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+}
+#send-btn:hover { background: #00dd00; }
+
+/* iPad / iOS Architecture Inline Popover context menu */
 #ipad-context-menu {
     position: absolute;
-    bottom: 50px;
-    left: 8px;
+    bottom: 55px;
+    left: 10px;
     background: #1c1c1e;
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 10px;
     display: flex;
     flex-direction: column;
     width: 180px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    z-index: 110;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+    z-index: 40;
     overflow: hidden;
 }
 .menu-item-action {
     background: transparent;
     border: none;
-    color: white;
+    color: #fff;
     padding: 12px 16px;
     text-align: left;
     font-size: 14px;
     cursor: pointer;
-    transition: background 0.15s;
-    width: 100%;
-}
-.menu-item-action:not(:last-child) {
     border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-.menu-item-action:hover {
-    background: rgba(255,255,255,0.08);
-}
+.menu-item-action:last-child { border-bottom: none; }
+.menu-item-action:hover { background: rgba(255, 255, 255, 0.1); }
 
-#chat-input {
-    flex: 1;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 6px;
-    padding: 8px 10px;
-    color: white;
-    font-size: 14px;
-    outline: none;
-}
-#chat-input:focus { border-color: rgba(0,255,0,0.5); }
-
-/* Audio Voice Recording Controller Element */
-#voice-record-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: white;
-    width: 34px;
-    height: 34px;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    flex-shrink: 0;
-}
-#voice-record-btn.recording-active {
-    background: #e74c3c !important;
-    animation: pulseRecordingState 1.2s infinite;
-    width: auto !important;
-    padding: 0 8px;
-    font-weight: bold;
-    border-radius: 4px;
-}
-@keyframes pulseRecordingState {
-    0% { opacity: 1.0; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1.0; }
-}
-
-#send-btn {
-    background: #00ff00;
-    border: none;
-    color: black;
-    padding: 8px 14px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background 0.15s;
-    flex-shrink: 0;
-}
-#send-btn:hover { background: #00dd00; }
-
-/* Inline Media Processing Display Assets */
+/* Adaptive Message Media Attachments */
 .media-preview-container {
+    margin-top: 5px;
     position: relative;
     display: inline-block;
-    margin-top: 5px;
     max-width: 100%;
 }
 .adaptive-preview-thumbnail {
-    max-width: 160px;
-    max-height: 120px;
+    max-width: 150px;
+    max-height: 110px;
     border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.15);
     cursor: pointer;
     display: block;
-    transition: opacity 0.15s;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: #000;
 }
-.adaptive-preview-thumbnail:hover { opacity: 0.85; }
-
 .video-play-overlay-icon {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(0,0,0,0.7);
-    color: white;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
+    color: #fff;
+    font-size: 24px;
     pointer-events: none;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.8);
 }
-
 .chat-voice-element-player {
-    outline: none;
-    height: 36px;
     max-width: 220px;
+    height: 32px;
+    outline: none;
 }
-
 .chat-generic-file-anchor {
+    display: inline-block;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 8px 12px;
+    border-radius: 6px;
     color: #00ff00;
     text-decoration: none;
-    font-weight: bold;
     font-size: 13px;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: rgba(255,255,255,0.05);
-    padding: 6px 10px;
-    border-radius: 4px;
-    border: 1px solid rgba(0,255,0,0.2);
+    margin-top: 4px;
 }
-.chat-generic-file-anchor:hover { background: rgba(0,255,0,0.1); }
+.chat-generic-file-anchor:hover { background: rgba(255,255,255,0.15); }
 
-/* --- THREE.JS INTERFACE LAYOVER OVERLAYS (ROBLOX LABELS STYLE) --- */
-#labels-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none; /* Allows pass-through clicks into Canvas context space */
-    z-index: 40;
-}
-
-/* Roblox Authentic Overhead Text Name Tag Standard */
-.roblox-name-label {
-    position: absolute;
-    transform: translate(-50%, -100%);
-    color: #ffffff;
-    font-family: Arial, sans-serif;
-    font-weight: bold;
-    font-size: 15px;
-    text-shadow: 2px 2px 0px #000000, -2px -2px 0px #000000, 2px -2px 0px #000000, -2px 2px 0px #000000, 2px 0px 0px #000000, -2px 0px 0px #000000, 0px 2px 0px #000000, 0px -2px 0px #000000;
-    white-space: nowrap;
-    letter-spacing: 0.5px;
-}
-
-/* Roblox Dynamic Chat Bubble Overlay Graphic UI component */
-.roblox-bubble {
-    position: absolute;
-    transform: translate(-50%, -140%);
-    background-color: #ffffff;
-    color: #000000;
-    font-family: Arial, sans-serif;
-    font-weight: bold;
-    font-size: 14px;
-    padding: 10px 14px;
-    border-radius: 12px;
-    box-shadow: 0px 3px 0px rgba(0,0,0,0.15);
-    max-width: 220px;
-    word-wrap: break-word;
-    text-align: center;
-    line-height: 1.3;
-}
-/* Retro bubble pointer indicator block */
-.roblox-bubble::after {
-    content: '';
-    position: absolute;
-    bottom: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 10px 10px 0;
-    border-style: solid;
-    border-color: #ffffff transparent;
-    display: block;
-    width: 0;
-}
-
-/* --- LIGHTBOX OVERLAY EFFECT MODULE --- */
+/* --- Lightbox Multi-Media Fullscreen View --- */
 #lightbox-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.92);
-    z-index: 1500;
+    background: rgba(5, 5, 5, 0.95);
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 150;
 }
-
 #lightbox-close-btn {
     position: absolute;
     top: 20px;
@@ -623,34 +584,13 @@ body {
         bottom: 20px;
         left: 20px;
         height: 200px;
+        transform: none;
     }
     
     #my-video-preview {
-        width: 130px;
-        height: 98px;
-        bottom: 235px; /* Safely clears the chat canvas box on narrow phone screens */
+        width: 120px;
+        height: 90px;
+        bottom: 235px; /* Platziert das Bild-in-Bild sicher oberhalb des Chatfensters auf Handys */
         right: 20px;
-    }
-    
-    #friend-video-view {
-        width: 100%;
-        max-width: 280px;
-        height: auto;
-        aspect-ratio: 4/3;
-    }
-    
-    #video-streams-container {
-        top: auto;
-        bottom: 235px;
-        left: 20px;
-        right: 20px;
-        flex-direction: row;
-        align-items: flex-end;
-        justify-content: space-between;
-        pointer-events: none;
-        gap: 0;
-    }
-    #friend-video-view, #my-video-preview {
-        pointer-events: auto;
     }
 }
