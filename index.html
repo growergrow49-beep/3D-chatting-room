@@ -28,27 +28,24 @@
     <div id="video-streams-container" style="display: none;">
         <video id="friend-video-view" autoplay playsinline></video>
         <video id="my-video-preview" autoplay playsinline muted></video>
+        <div id="screenshare-status-indicator" style="display: none;">Screensharing is active</div>
     </div>
 
     <div id="call-overlay-modal" style="display: none;">
-        <div class="modal-box">
+        <h2 id="modal-title">Incoming Call...</h2>
+        <p id="modal-description">A friend is calling you.</p>
   
-            <h2 id="modal-title">Incoming Call...</h2>
-            <p id="modal-description">A friend is calling you.</p>
-      
-            <div class="modal-actions" id="modal-actions-wrapper">
-                <button id="modal-accept-btn">Accept</button>
-                <button id="modal-decline-btn">Decline</button>
-            </div>
+        <div class="modal-actions" id="modal-actions-wrapper">
+            <button id="modal-accept-btn">Accept</button>
+            <button id="modal-decline-btn">Decline</button>
+        </div>
 
-            <div id="modal-live-controls" style="display: none;">
-                <button id="screenshare-btn" title="Share Screen">🖥️</button>
-                <button id="mute-btn" title="Mute Microphone">🎤</button>
-                <button id="deafen-btn" title="Deafen Audio">🎧</button>
-                <button id="camera-toggle-btn" title="Toggle Camera">📷</button>
-              
-                <button id="hangup-btn" title="End Call" class="hangup-danger-btn">🛑</button>
-            </div>
+        <div id="modal-live-controls" style="display: none;">
+            <button id="screenshare-btn" title="Share Screen">🖥️</button>
+            <button id="mute-btn" title="Mute Microphone">🎤</button>
+            <button id="deafen-btn" title="Deafen Audio">🎧</button>
+            <button id="camera-toggle-btn" title="Toggle Camera">📷</button>
+            <button id="hangup-btn" title="End Call" class="hangup-danger-btn">🛑</button>
         </div>
     </div>
 
@@ -169,8 +166,7 @@
                     writingStatus.innerText = data.status ? "friend is writing..." : "";
                 } else if (data.type === 'media') {
                     appendMediaMessage("Friend", data.mediaType, data.payload, data.name);
-                } 
-                else if (data.type === 'call-signaling') {
+                } else if (data.type === 'call-signaling') {
                     handleIncomingCallSignal(data);
                 }
             });
@@ -460,6 +456,7 @@
             document.getElementById('deafen-btn').addEventListener('click', toggleDeafen);
             document.getElementById('camera-toggle-btn').addEventListener('click', toggleCameraState);
             document.getElementById('hangup-btn').addEventListener('click', terminateActiveCall);
+
             peer.on('call', (call) => {
                 if (call.metadata && call.metadata.isScreenShare) {
                     promptScreenShareAcceptance(call);
@@ -477,7 +474,11 @@
             } else if (data.action === 'upgrade-declined') {
                 alert("Friend declined camera activation.");
             } else if (data.action === 'accept-notify') {
-                const modal = document.getElementById('call-overlay-modal');
+                // Fix 1 & 2: Raum komplett schließen und Texte zentriert oben anzeigen
+                document.getElementById('chat-interface').style.display = 'none';
+                document.getElementById('call-controls-container').style.display = 'none';
+                if (renderer && renderer.domElement) renderer.domElement.style.display = 'none';
+
                 document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
                 document.getElementById('modal-description').innerText = "Connected with friend.";
                 document.getElementById('modal-live-controls').style.display = 'flex';
@@ -489,6 +490,11 @@
             isInCallMode = true;
             toggle3DLabelsVisibility(false);
             
+            // Fix 1 & 2: Schließe den normalen Raum komplett weg
+            document.getElementById('chat-interface').style.display = 'none';
+            document.getElementById('call-controls-container').style.display = 'none';
+            if (renderer && renderer.domElement) renderer.domElement.style.display = 'none';
+
             const modal = document.getElementById('call-overlay-modal');
             document.getElementById('modal-title').innerText = "Calling your friend...";
             document.getElementById('modal-description').innerText = `Initiating ${type === 'video' ? 'Video' : 'Voice'} Call connection.`;
@@ -498,7 +504,6 @@
             
             updateStatusLabelText("Calling friend...");
             try {
-                alert(`Calling. Please ensure Camera/Microphone permissions are allowed when requested.`);
                 const constraints = {
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
                     video: type === 'video' ? { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } : false
@@ -506,10 +511,13 @@
                 localMediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                 isCameraOn = type === 'video';
 
+                // Fix 1: Der Videocontainer ist nun der eigentliche, saubere Vollbildschirm
+                document.getElementById('video-streams-container').style.display = 'block';
                 if (type === 'video') {
-                    document.getElementById('video-streams-container').style.display = 'block';
                     document.getElementById('my-video-preview').srcObject = localMediaStream;
                     document.getElementById('my-video-preview').style.display = 'block';
+                } else {
+                    document.getElementById('my-video-preview').style.display = 'none';
                 }
 
                 if (dataConnection) {
@@ -542,6 +550,11 @@
             const acceptBtn = document.getElementById('modal-accept-btn');
             const declineBtn = document.getElementById('modal-decline-btn');
             acceptBtn.onclick = async () => {
+                // Fix 1 & 2: Raum schließen, sobald man annimmt
+                document.getElementById('chat-interface').style.display = 'none';
+                document.getElementById('call-controls-container').style.display = 'none';
+                if (renderer && renderer.domElement) renderer.domElement.style.display = 'none';
+
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
                 document.getElementById('modal-live-controls').style.display = 'flex';
                 document.getElementById('modal-title').innerText = type === 'video' ? 'Video call active' : 'Call active';
@@ -551,7 +564,6 @@
                 }
                 
                 try {
-                    alert(`Answering. Please grant Media Access when prompted.`);
                     const constraints = {
                         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
                         video: type === 'video' ? { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } : false
@@ -559,10 +571,12 @@
                     localMediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                     isCameraOn = type === 'video';
 
+                    document.getElementById('video-streams-container').style.display = 'block';
                     if (type === 'video') {
-                        document.getElementById('video-streams-container').style.display = 'block';
                         document.getElementById('my-video-preview').srcObject = localMediaStream;
                         document.getElementById('my-video-preview').style.display = 'block';
+                    } else {
+                        document.getElementById('my-video-preview').style.display = 'none';
                     }
 
                     call.answer(localMediaStream);
@@ -597,11 +611,11 @@
                 const friendVideo = document.getElementById('friend-video-view');
                 friendVideo.srcObject = remoteStream;
           
+                document.getElementById('video-streams-container').style.display = 'block';
                 if (activeCallType === 'audio') {
                     friendVideo.style.display = 'none';
                 } else {
                     friendVideo.style.display = 'block';
-                    document.getElementById('video-streams-container').style.display = 'block';
                 }
             });
             call.on('close', () => {
@@ -685,7 +699,6 @@
             activeCallType = 'video';
             isCameraOn = true;
             try {
-                alert("Granting camera access for call upgrade.");
                 const videoTrackStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } } 
                 });
@@ -724,10 +737,14 @@
             }
 
             try {
-                alert("Please select the screen/window you wish to share.");
+                // Fix 3: Alert-Blockierung entfernt! Startet direkt das native Browser-Dialogfenster mit Audio-Optionen
                 screenShareStream = await navigator.mediaDevices.getDisplayMedia({ 
                     video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } },
-                    audio: true 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    } 
                 });
                 const friendId = dataConnection.peer;
                 const shareCall = peer.call(friendId, screenShareStream, { metadata: { isScreenShare: true } });
@@ -736,13 +753,21 @@
                     stopScreenShareInstance();
                 };
                 document.getElementById('screenshare-btn').classList.add('sharing-active-frame');
-                document.getElementById('modal-description').innerText = "Connected with friend (Sharing your Screen).";
+                
+                // Fix 3: Live-Textänderung bei aktivem Screen-Sharing
+                document.getElementById('modal-description').innerText = "Screensharing is active";
+                document.getElementById('screenshare-status-indicator').style.display = 'block';
             } catch (err) {
                 console.error("Error sourcing display capture media streams:", err);
             }
         }
 
         function promptScreenShareAcceptance(call) {
+            // Fix 1 & 2: Vollbildmodus erzwingen und blockierenden Raum schließen
+            document.getElementById('chat-interface').style.display = 'none';
+            document.getElementById('call-controls-container').style.display = 'none';
+            if (renderer && renderer.domElement) renderer.domElement.style.display = 'none';
+
             const modal = document.getElementById('call-overlay-modal');
             document.getElementById('modal-title').innerText = "Screen Share Stream";
             document.getElementById('modal-description').innerText = "Friend wants to share their screen. Watch?";
@@ -754,7 +779,7 @@
                 document.getElementById('modal-actions-wrapper').style.display = 'none';
                 document.getElementById('modal-live-controls').style.display = 'flex';
                 document.getElementById('modal-title').innerText = activeCallType === 'video' ? 'Video call active' : 'Call active';
-                document.getElementById('modal-description').innerText = "Connected with friend (Viewing Screen Share).";
+                document.getElementById('modal-description').innerText = "Viewing Friend's Screen";
                 currentScreenShareCall = call;
                 call.answer(); 
                 
@@ -786,6 +811,7 @@
             }
             document.getElementById('screenshare-btn').classList.remove('sharing-active-frame');
             document.getElementById('modal-description').innerText = "Connected with friend.";
+            document.getElementById('screenshare-status-indicator').style.display = 'none';
         }
 
         function terminateActiveCall() {
@@ -802,7 +828,7 @@
             
             document.getElementById('video-streams-container').style.display = 'none';
             const friendVideo = document.getElementById('friend-video-view');
-            friendVideo.srcObject = null;
+            if (friendVideo) friendVideo.srcObject = null;
             document.getElementById('my-video-preview').srcObject = null;
 
             isMuted = false;
@@ -817,9 +843,15 @@
             updateStatusLabelText("");
             manageLocalAudioSuspension(false);
             
+            // Re-Aktivierung des Raums nach Auflegen
             isInCallMode = false;
             document.getElementById('call-overlay-modal').style.display = 'none';
             document.getElementById('modal-live-controls').style.display = 'none';
+            
+            document.getElementById('chat-interface').style.display = 'flex';
+            document.getElementById('call-controls-container').style.display = 'flex';
+            if (renderer && renderer.domElement) renderer.domElement.style.display = 'block';
+            
             toggle3DLabelsVisibility(true);
         }
 
@@ -1046,13 +1078,11 @@
             const maxZ = 15.0;
             const zoomSpeed = 0.005;
 
-            // Desktop Mouse-Wheel Listener
             window.addEventListener('wheel', (e) => {
                 if (!isChatroomActive) return;
                 e.preventDefault();
 
                 let currentZ = camera.position.z + e.deltaY * zoomSpeed;
-    
                 if (currentZ < minZ) currentZ = minZ;
                 if (currentZ > maxZ) currentZ = maxZ;
 
@@ -1063,7 +1093,6 @@
                 camera.updateProjectionMatrix();
             }, { passive: false });
 
-            // Mobile Pinch-To-Zoom Touch Event-Listener Fix
             let initialTouchDistance = null;
             let initialZ = null;
 
@@ -1085,7 +1114,6 @@
                     e.touches[0].pageY - e.touches[1].pageY
                 );
                 
-                // Berechne die Skalierungsänderung (Verhältnis der Distanzen)
                 const factor = initialTouchDistance / currentDistance;
                 let currentZ = initialZ * factor;
 
